@@ -410,7 +410,7 @@ if __name__ == '__main__':
                 plt.close()
 
 
-    save_path = os.path.join(save_dir, 'v_bg_pseudolabels.npz')
+    save_path = os.path.join(save_dir, 'pseudolabels.npz')
     np.savez(save_path, pseudo_label_dic, uncertain_dic, proto_pseudo_dic, prob_dic)
 
     # elif args.dataset=="Domain2":
