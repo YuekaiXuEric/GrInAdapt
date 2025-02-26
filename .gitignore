@@ -5,6 +5,12 @@ __pycache__/
 
 # C extensions
 *.so
+*.pth
+*.csv
+*.txt
+*.ipynb
+*.tar
+
 
 # Distribution / packaging
 .Python
