@@ -154,12 +154,6 @@ def process_data(OCT_img, OCTA_img, device, idx, input_shape=(128, 256, 256),
     for i in range(data.shape[1]):
         data[0, i, :, :, :] = normalize(data[0, i, :, :, :])
 
-    # for i in range(data.shape[1]):
-    #     for u in range(data.shape[3]):
-    #             for v in range(data.shape[4]):
-    #                 data[0, i, 0, u, v] = (abs(u - 0.5 * input_shape[1]) + abs(v - 0.5 * input_shape[2]))\
-    #                                             / ( 0.5 * input_shape[1] + 0.5 * input_shape[2])
-
     H, W = input_shape[1], input_shape[2]
 
     u_grid, v_grid = np.meshgrid(np.arange(W), np.arange(H), indexing='xy')
@@ -356,10 +350,10 @@ class aireadi_dataset:
         # proto_pseudo_npz = self.proto_pseudo_dic.get(filename_without_ext, None)
         # prob_npz = self.prob_dic.get(filename_without_ext, None)
 
-        # softmax_dir = os.path.join(self.root, 'retinal_octa/', "OCTA_merge_label/Registration_Merging_Results_v2_new/OCTA/", f"{row['participant_id']}_{row['laterality']}",
-        #                             f"{row['manufacturers_model_name']}_{row['anatomic_region']}", "npy")
-        softmax_dir = os.path.join("/data/zucksliu/ahonjaya_tempura_migrated/ahonjaya/logs/AI-READI-Results/Registration_Merging_Results_v3/OCTA", f"{row['participant_id']}_{row['laterality']}",
+        softmax_dir = os.path.join(self.root, 'retinal_octa/', "OCTA_merge_label/Registration_Merging_Results_v2_new/OCTA/", f"{row['participant_id']}_{row['laterality']}",
                                     f"{row['manufacturers_model_name']}_{row['anatomic_region']}", "npy")
+        # softmax_dir = os.path.join("/data/zucksliu/ahonjaya_tempura_migrated/ahonjaya/logs/AI-READI-Results/Registration_Merging_Results_v3/OCTA", f"{row['participant_id']}_{row['laterality']}",
+        #                             f"{row['manufacturers_model_name']}_{row['anatomic_region']}", "npy")
         softmax_path = os.path.join(softmax_dir, "softmax.npy")
         if os.path.exists(softmax_path):
             merge_softmax_np = np.load(softmax_path)

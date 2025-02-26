@@ -4,8 +4,8 @@ import pandas as pd
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-g', '--gpu', type=str, default='1')
-parser.add_argument('--model-file', type=str, default='./logs_train/oneNorm/278.pth')
-parser.add_argument('--save_root', type=str, default='/m-ent1/ent1/zucksliu/SFDA-CBMT_results')# /data/zucksliu/SFDA-CBMT_results/20250222_annealing_expr/
+parser.add_argument('--model-file', type=str, default='./models/oneNorm/278.pth')
+parser.add_argument('--save_root', type=str, default='/m-ent1/ent1/zucksliu/SFDA-CBMT_results')# TODO
 parser.add_argument('--file_name', type=str, default='Evaluation_image_level_model')
 parser.add_argument('--model', type=str, default='IPN_V2', help='IPN_V2')
 parser.add_argument('--out-stride', type=int, default=16)
@@ -16,7 +16,7 @@ parser.add_argument('--lr', type=float, default=1e-4)
 parser.add_argument('--lr-decrease-rate', type=float, default=0.9, help='ratio multiplied to initial lr')
 parser.add_argument('--lr-decrease-epoch', type=int, default=1, help='interval epoch number for lr decrease')
 
-parser.add_argument('--data-dir', default='/projects/chimera/zucksliu/AI-READI-2.0/dataset/')
+parser.add_argument('--data-dir', default='/projects/chimera/zucksliu/AI-READI-2.0/dataset/') # TODO
 parser.add_argument('--dataset', type=str, default='AIREADI')
 parser.add_argument('--model-source', type=str, default='OCTA500')
 parser.add_argument('--batch-size', type=int, default=2)
