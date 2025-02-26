@@ -1,5 +1,3 @@
-# Developed by Yuekai Xu, Aaron Honjaya, Zixuan Liu, all rights reserved to GrInAdapt team.
-
 import pydicom
 import torch
 import os
@@ -199,20 +197,20 @@ class aireadi_dataset:
         self.roi = roi
         self.device = device
         self.mode = mode
-        self.octa_dir = root + 'retinal_octa/'
+        self.octa_dir = root
         self.test_manifest_path = None
 
         if mode == 'train' and all_success:
-            octa_manifest_tsv = self.octa_dir + 'success_manifest_train_w_no_dups.tsv'
+            octa_manifest_tsv = self.octa_dir + 'success_manifest_train.tsv'
         elif mode == 'test' and all_success:
-            octa_manifest_tsv = self.octa_dir + 'success_manifest_test_w_no_dups.tsv'
-            self.test_set_dir = self.octa_dir + 'mini_gt_test_set_128_new_3/'
+            octa_manifest_tsv = self.octa_dir + 'success_manifest_test.tsv'
+            self.test_set_dir = self.octa_dir + 'mini_test_set/'
             test_manifest_path = self.test_set_dir + 'manifest.tsv'
         elif mode == 'train':
             octa_manifest_tsv = self.octa_dir + 'manifest_train.tsv'
         elif mode == 'test':
-            octa_manifest_tsv = self.octa_dir + 'success_manifest_test_w_no_dups.tsv'
-            self.test_set_dir = self.octa_dir + 'mini_gt_test_set_128_new_3/'
+            octa_manifest_tsv = self.octa_dir + 'success_manifest_test.tsv'
+            self.test_set_dir = self.octa_dir + 'mini_test_set/'
             test_manifest_path = self.test_set_dir + 'manifest.tsv'
         else:
             octa_manifest_tsv = self.octa_dir + 'manifest.tsv'
@@ -372,20 +370,20 @@ class AireadiParticipantDataset(Dataset):
         self.roi = roi
         self.device = device
         self.mode = mode
-        self.octa_dir = root + 'retinal_octa/'
+        self.octa_dir = root
         self.test_manifest_path = None
 
         if mode == 'train' and all_success:
-            octa_manifest_tsv = self.octa_dir + 'success_manifest_train_w_no_dups.tsv'
+            octa_manifest_tsv = self.octa_dir + 'success_manifest_train.tsv'
         elif mode == 'test' and all_success:
-            octa_manifest_tsv = self.octa_dir + 'success_manifest_test_w_no_dups.tsv'
-            self.test_set_dir = self.octa_dir + 'mini_gt_test_set_128_new_3/'
+            octa_manifest_tsv = self.octa_dir + 'success_manifest_test.tsv'
+            self.test_set_dir = self.octa_dir + 'mini_test_set/'
             test_manifest_path = self.test_set_dir + 'manifest.tsv'
         elif mode == 'train':
             octa_manifest_tsv = self.octa_dir + 'manifest_train.tsv'
         elif mode == 'test':
-            octa_manifest_tsv = self.octa_dir + 'success_manifest_test_w_no_dups.tsv'
-            self.test_set_dir = self.octa_dir + 'mini_gt_test_set_128_new_3/'
+            octa_manifest_tsv = self.octa_dir + 'success_manifest_test.tsv'
+            self.test_set_dir = self.octa_dir + 'mini_test_set/'
             test_manifest_path = self.test_set_dir + 'manifest.tsv'
         else:
             octa_manifest_tsv = self.octa_dir + 'manifest.tsv'

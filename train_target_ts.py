@@ -1,5 +1,3 @@
-# Developed by Yuekai Xu, Aaron Honjaya, Zixuan Liu, all rights reserved to GrInAdapt team.
-
 import argparse
 import csv
 import pandas as pd

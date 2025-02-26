@@ -1,5 +1,3 @@
-# Developed by Yuekai Xu, Aaron Honjaya, Zixuan Liu, all rights reserved to GrInAdapt team.
-
 import argparse
 import csv
 import pandas as pd
@@ -8,14 +6,15 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-g', '--gpu', type=str, default='2')
 parser.add_argument('--model-file', type=str, default='./models/oneNorm/278.pth')
-parser.add_argument('--save_root', type=str, default='/m-ent1/ent1/zucksliu/SFDA-CBMT_results/evaluation_results')# /data/zucksliu/SFDA-CBMT_results/20250222_annealing_expr/
+parser.add_argument('--save_root', type=str, default='./log_results/')
 parser.add_argument('--file_name', type=str, default='Evaluation_image_level_model')
+parser.add_argument('--fail_image_path', type=str, default='./fail_image_list.csv')
 parser.add_argument('--model', type=str, default='IPN_V2', help='IPN_V2')
 parser.add_argument('--out-stride', type=int, default=16)
 parser.add_argument('--sync-bn', type=bool, default=True)
 parser.add_argument('--freeze-bn', type=bool, default=False)
 parser.add_argument('--epoch', type=int, default=3)
-parser.add_argument('--lr', type=float, default=1e-4) # Aaron lr: 0.0001
+parser.add_argument('--lr', type=float, default=1e-4)
 parser.add_argument('--lr-decrease-rate', type=float, default=0.9, help='ratio multiplied to initial lr')
 parser.add_argument('--lr-decrease-epoch', type=int, default=1, help='interval epoch number for lr decrease')
 
@@ -40,7 +39,6 @@ parser.add_argument("--proj_map_channels", type=int, default=2, help="class numb
 parser.add_argument("--get_2D_pred", type=bool, default=True, help="get 2D head")
 parser.add_argument("--proj_train_ratio", type=int, default=1, help="proj_map H or W to train_size H or W ratio. Currently only supports 1 or 2")
 parser.add_argument("--dc_norms", type = str, default = "NG", help="normalization for Double Conv")
-parser.add_argument("--gt_dir", type = str, default = "GAN_groupnorm_test_set", help="GAN_groupnorm_test_set or OneNorm_test_set")
 
 parser.add_argument('--checkpoint-interval', type=int, default=400,
                     help='Save model checkpoint every K patient updates')
@@ -740,8 +738,8 @@ def main():
         device=device,
         mode='test',
         transform=custom_transform_weak,
-        label_dir=args.gt_dir,
-        all_success=args.run_all_success
+        all_success=args.run_all_success,
+        fail_image_path=args.fail_image_path,
     )
 
     test_loader = DataLoader(dataset_test, batch_size=args.batch_size, shuffle=False, num_workers=4, collate_fn=custom_collate_fn)

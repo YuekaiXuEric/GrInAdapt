@@ -1,5 +1,3 @@
-# Developed by Yuekai Xu, Aaron Honjaya, Zixuan Liu, all rights reserved to GrInAdapt team.
-
 import argparse
 import os
 import os.path as osp
@@ -149,7 +147,7 @@ if __name__ == '__main__':
     parser.add_argument('--source', type=str, default='OCTA500')#Domain4
     parser.add_argument('--save_root', type=str, default='./log_results/')
     parser.add_argument('-g', '--gpu', type=str, default='3')
-    parser.add_argument('--data-dir', default='/projects/chimera/zucksliu/AI-READI-2.0/dataset/')
+    parser.add_argument('--data-dir', default='')
     parser.add_argument('--out-stride',type=int,default=16)
     parser.add_argument('--save-root-ent',type=str,default='./results/ent/')
     parser.add_argument('--save-root-mask',type=str,default='./results/mask/')

@@ -1,5 +1,3 @@
-
-# from scipy.misc import imsave
 import os.path as osp
 import numpy as np
 import os

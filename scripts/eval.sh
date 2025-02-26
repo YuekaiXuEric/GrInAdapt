@@ -1,7 +1,7 @@
 image_save_metric=assd
 data_dir='/path/to/your/dataset/'
 resume_ckpt_path='/path/to/your/checkpoint.pth.tar'
-file_name=Evaluation_ours_new_3_${image_save_metric}
+file_name=Evaluation${image_save_metric}
 
 python eval.py \
         --data-dir ${data_dir} \

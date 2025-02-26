@@ -2,7 +2,7 @@ data_dir='/path/to/your/dataset/'
 resume_ckpt_path='/path/to/your/checkpoint.pth.tar'
 fail_image_list='/path/to/your/fail_image_list.csv'
 npz_path='/path/to/your/npz_file.npz'
-file_name='Training_image_level_model_pseudo'
+file_name='Training_cbmt_w_ensemble_prediction'
 
 python train_target_ts_pseudo.py \
         --data-dir ${data_dir} \

@@ -15,16 +15,6 @@ def _upscan(f):
 
 
 def dice_coefficient_numpy(binary_segmentation, binary_gt_label):
-    '''
-    Compute the Dice coefficient between two binary segmentation.
-    Dice coefficient is defined as here: https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient
-    Input:
-        binary_segmentation: binary 2D numpy array representing the region of interest as segmented by the algorithm
-        binary_gt_label: binary 2D numpy array representing the region of interest as provided in the database
-    Output:
-        dice_value: Dice coefficient between the segmentation and the ground truth
-    '''
-
     # turn all variables to booleans, just in case
     binary_segmentation = np.asarray(binary_segmentation, dtype=np.bool)
     binary_gt_label = np.asarray(binary_gt_label, dtype=np.bool)
@@ -49,16 +39,6 @@ def dice_coefficient_numpy(binary_segmentation, binary_gt_label):
 
 
 def dice_coefficient_numpy_3D(binary_segmentation, binary_gt_label):
-    '''
-    Compute the Dice coefficient between two binary segmentation.
-    Dice coefficient is defined as here: https://en.wikipedia.org/wiki/S%C3%B8rensen%E2%80%93Dice_coefficient
-    Input:
-        binary_segmentation: binary 3D numpy array representing the region of interest as segmented by the algorithm
-        binary_gt_label: binary 3D numpy array representing the region of interest as provided in the database
-    Output:
-        dice_value: Dice coefficient between the segmentation and the ground truth
-    '''
-
     # turn all variables to booleans, just in case
     binary_segmentation = np.asarray(binary_segmentation, dtype=np.bool)
     binary_gt_label = np.asarray(binary_gt_label, dtype=np.bool)
@@ -89,16 +69,6 @@ def dice_numpy_medpy(binary_segmentation, binary_gt_label):
     binary_gt_label = np.asarray(binary_gt_label)
 
     return medmetric.dc(binary_segmentation, binary_gt_label)
-
-
-    # if get_hd:
-    #     if np.sum(binary_segmentation) > 0 and np.sum(binary_gt_label) > 0:
-    #         return medmetric.assd(binary_segmentation, binary_gt_label)
-    #         # return medmetric.hd(binary_segmentation, binary_gt_label)
-    #     else:
-    #         return np.nan
-    # else:
-    #     return 0.0
 
 
 def assd_numpy(binary_segmentation, binary_gt_label):

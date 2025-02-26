@@ -168,31 +168,20 @@ class FPM(nn.Module):
             nn.Conv3d(in_channels, out_channels, kernel_size=(h, 3, 3), padding=(0, 1, 1), stride=(h, 1, 1)),
             nn.ReLU(inplace=True),
         )
-        # ZL: conv1 and conv2 use different kernel sizes, but the same padding and stride.
-        # so the receptive field of the two convolutions are different.
 
         self.conv3 = nn.Sequential(
             nn.Conv3d(in_channels, out_channels, kernel_size=(h, 3, 3), padding=(0, 2, 2), stride=(h, 1, 1), dilation=(1, 2, 2)),
             nn.ReLU(inplace=True),
         )
-        # ZL: conv3 has a dilation of 2, so the receptive field is larger than conv2.
 
         self.maxpool = nn.MaxPool3d(kernel_size=[h, 1, 1])
-        # ZL: max pooling is applied to the input to reduce the spatial dimension.
-        # I don't know the purpose of these either, maybe it's trying to maintain the really low-level features?
-        # As no convolutional transformation is applied to the maxpooled input.
 
         self.conv4 = nn.Sequential(
             nn.Conv3d(out_channels * 3 + in_channels, out_channels, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
         )
-        # ZL: conv4 is for final projection of the concatenated features to the output channels.
 
     def forward(self, x):
-        # NOTE: the shapes given are from the first FPM layer of the IPNV2 model trained on OCTA/OCT 6mm
-
-        # input shape = (N, 2, 128, 100, 100) where N is batchsize (default N = 4)
-        # 2 is the number of channels and (128, 100, 100) are the dimensions.
 
         x1 = self.conv1(x)  # (N, 2, 128, 100, 100) -> (N, 16, 8, 100, 100)
 
@@ -202,20 +191,10 @@ class FPM(nn.Module):
 
         x4 = self.maxpool(x)  # (N, 2, 128, 100, 100) -> (N, 2, 8, 100, 100)
 
-        # ************************************** #
-        # QUESTION: why the concatenations here?
-        #           is this the feature pyramid
-        #           network?
-        # ZL: I think this is not the original feature pyramid network.
-        # Instead, it's simply concatenating transformed features from the input, under different receptive fields.
-        # or pooling operations.
-        # ************************************** #
         x = torch.cat([x1, x2], dim=1)  # (N, 16, 8, 100, 100) -> (N, 32, 8, 100, 100)
         x = torch.cat([x, x3], dim=1)  # (N, 32, 8, 100, 100) -> (N, 48, 8, 100, 100)
         x = torch.cat([x, x4], dim=1)  # (N, 48, 8, 100, 100) -> (N, 50, 8, 100, 100)
-        # after cats, x.shape =  (N, 50, 8, 100, 100)
 
-        # ZL: the final projection of the concatenated features to the output channels.
         x = self.conv4(x)  # (N, 50, 8, 100, 100) -> (N, 16, 8, 100, 100)
 
         return x
@@ -226,7 +205,6 @@ class IPNV2_with_proj_map(IPNV2):
         super(IPNV2_with_proj_map, self).__init__(in_channels, n_classes, ava_classes=ava_classes, return_feature=return_feature, dc_norms=dc_norms)
 
         if proj_vol_ratio != 1:
-            # TODO: implement supporting other train ratios
             assert proj_vol_ratio == 2, "Only supports 1 or 2"
 
             self.pm_downsize_conv = nn.Conv2d(proj_map_in_channels, 64, kernel_size=3, padding=1, stride=2)
@@ -242,8 +220,6 @@ class IPNV2_with_proj_map(IPNV2):
         if get_2D_pred:
             # if ava_classes is not None:
             self.head2D = UNetAva(64, 128, n_classes, ava_classes, dc_norms=dc_norms)
-            # else:
-            #     raise NotImplementedError("Only supports UNetAva for now")
             #     self.head2D = UNet(64, 128, n_classes)  # H is squeezed, C -> n_classes: 64 -> 5
 
         self.manufacturer_fc = nn.Linear(feature_dim, 3)  # 3 classes for manufacturer
@@ -367,74 +343,6 @@ class IPNV2_with_proj_map(IPNV2):
                 return logits_cavf, logits_ava, manufacturer_logits, anatomical_logits, region_size_logits, laterality_logits, features
             else:
                 return self.apply_head(x)
-
-
-
-
-# class UNet(nn.Module):
-#     def __init__(self, in_channels, channels, n_classes, return_feature=False):
-#         """
-#         in_channels: number of input channels
-#         channels: number of channels in the hidden layers
-#         n_classes: number of output classes
-#         """
-#         super(UNet, self).__init__()
-#         self.return_feature = return_feature
-
-#         # output dim change is just in_channels -> n_classes.
-#         # the H and W will be the same.
-
-#         self.in_channels = in_channels
-#         self.channels = channels
-#         self.n_classes = n_classes
-
-#         # convolution to increase channels while keeping h, w the same
-#         self.inc = DoubleConv2D(in_channels, channels)
-
-#         # each down layer is a convolutional one.
-#         # C -> C ; H -> floor(H/2) ; W -> floor(W/2)
-#         self.down1 = Down(channels, channels)
-#         self.down2 = Down(channels, channels)
-#         self.down3 = Down(channels, channels)
-#         self.down4 = Down(channels, channels)
-
-
-#         # each up layer is either a upsampling bilinear layer or an ConvTranspose layer.
-#         # Channels kept the same, while H and W increase through same dims in down layers.
-#         self.up1 = Up(2*channels, channels)
-#         self.up2 = Up(2*channels, channels)
-#         self.up3 = Up(2*channels, channels)
-#         self.up4 = Up(2*channels, channels)
-
-#         # output has same dims as input except C -> n_classes.
-#         self.outc = DoubleConv2D(channels, n_classes)
-
-
-#     def get_feature(self, x):
-#         x1 = self.inc(x)  # (N, 64, 100, 100) -> (N, 128, 100, 100)
-
-#         x2 = self.down1(x1)  # (N, 128, 100, 100) -> (N, 128, 50, 50)
-#         x3 = self.down2(x2)  # (N, 128, 50, 50) -> (N, 128, 25, 25)
-#         x4 = self.down3(x3)  # (N, 128, 25, 25) -> (N, 128, 12, 12)
-#         x5 = self.down4(x4)  # (N, 128, 12, 12) -> (N, 128, 6, 6)
-
-#         x = self.up1(x5, x4)  # (N, 128, 6, 6) -> (N, 128, 12, 12)
-
-#         x = self.up2(x, x3)  # (N, 128, 12, 12) -> (N, 128, 25, 25)
-#         x = self.up3(x, x2)  # (N, 128, 25, 25) -> (N, 128, 50, 50)
-#         feature = self.up4(x, x1)  # (N, 128, 50, 50) -> (N, 128, 100, 100)
-
-#         return feature
-
-#     def forward(self, x):
-
-#         feature = self.get_feature(x)
-#         logits_cavf = self.outc(feature)  # (N, 128, 100, 100) -> (N, 5, 100, 100)
-
-#         if self.return_feature:
-#             return logits_cavf, feature
-#         else:
-#             return logits_cavf
 
 
 class UNet(nn.Module):
@@ -590,56 +498,6 @@ class DoubleConv2D(nn.Module):
         # return self.double_conv(x)
 
 
-# class Down(nn.Module):
-#     """Downscaling with maxpool then double conv"""
-
-#     def __init__(self, channels):
-#         super().__init__()
-
-#         # H -> floor(H/2), W -> floor(W/2)
-#         self.maxpool_conv = nn.Sequential(nn.MaxPool2d(2), DoubleConv2D(channels, channels))
-
-#     def forward(self, x):
-#         return self.maxpool_conv(x)
-# class Up(nn.Module):
-#     """Upscaling then double conv"""
-
-#     def __init__(self, channels, bilinear=True):
-#         super().__init__()
-
-#         # if bilinear, use the normal convolutions to reduce the number of channels
-#         if bilinear:
-#             self.up = nn.Upsample(scale_factor=2, mode="bilinear", align_corners=True)
-#         else:
-#             self.up = nn.ConvTranspose2d(channels // 2, channels // 2, kernel_size=2, stride=2)  # cyr6e# channels ?
-
-#         self.conv = DoubleConv2D(channels * 2, channels)
-
-#     def forward(self, x1, x2):
-#         # x1 is input and x2 is for skip connection
-#         # for x1 = (N, C1, H1, W2) and x2 = (N, C2, H2, W2)...
-
-#         # doubles H1 and W1
-#         x1 = self.up(x1)  # H1 -> 2*H1 ; W1 -> 2*W1
-
-#         # calculates diff in height and width between x1 and x2 now.
-#         diffY = torch.tensor([x2.size()[2] - x1.size()[2]])
-#         diffX = torch.tensor([x2.size()[3] - x1.size()[3]])
-
-#         # pads x1 to make sure that H1 = H2 and W1 = W2.
-#         x1 = torch.nn.functional.pad(x1, [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2])
-#         # ZL: FIXME: Think practice: Why we need this padding here? When will the padding be applied
-#         # AH: NOTE: without it the concatenation would fail. Only applied when 2*H1 != 2*H2.
-
-#         # skip connection along channels
-#         x = torch.cat([x2, x1], dim=1)  # C -> 2*C
-
-#         # conv to go back down to C channels.
-#         x = self.conv(x)
-
-#         return x
-
-
 class Down(nn.Module):
     """Downscaling with maxpool then double conv"""
 
@@ -682,8 +540,6 @@ class Up(nn.Module):
 
         # pads x1 to make sure that H1 = H2 and W1 = W2.
         x1 = torch.nn.functional.pad(x1, [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2])
-        # ZL: FIXME: Think practice: Why we need this padding here? When will the padding be applied
-        # AH: NOTE: without it the concatenation would fail. Only applied when 2*H1 != 2*H2.
 
         # skip connection along channels
         x = torch.cat([x2, x1], dim=1)  # C -> 2*C

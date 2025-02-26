@@ -1,5 +1,3 @@
-# Developed by Yuekai Xu, Aaron Honjaya, Zixuan Liu, all rights reserved to GrInAdapt team.
-
 import argparse
 import csv
 import os
@@ -22,14 +20,14 @@ import csv
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-g', '--gpu', type=str, default='2')
-parser.add_argument('--model-file', type=str, default='./logs_train/oneNorm/278.pth')
+parser.add_argument('--model-file', type=str, default='./models/oneNorm/278.pth')
 parser.add_argument('--file_name', type=str, default='Evaluation_image_level_model')
 parser.add_argument('--model', type=str, default='IPN_V2', help='IPN_V2')
 parser.add_argument('--out-stride', type=int, default=16)
 parser.add_argument('--sync-bn', type=bool, default=True)
 parser.add_argument('--freeze-bn', type=bool, default=False)
 parser.add_argument('--epoch', type=int, default=3)
-parser.add_argument('--lr', type=float, default=1e-4) # Aaron lr: 0.0001
+parser.add_argument('--lr', type=float, default=1e-4)
 parser.add_argument('--lr-decrease-rate', type=float, default=0.9, help='ratio multiplied to initial lr')
 parser.add_argument('--lr-decrease-epoch', type=int, default=1, help='interval epoch number for lr decrease')
 
@@ -83,12 +81,6 @@ from tqdm import tqdm
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from utils.metrics import dice_coefficient, assd_coefficient
 
-import model
-from dataloaders.aireadi_dataloader import AireadiParticipantSegmentation_2transform, AireadiParticipantSegmentation, ResumeSampler
-from dataloaders.custom_octa_transform import Custom3DTransformTrain, Custom3DTransformWeak
-from training_utils import DiceLoss
-
-# test 11212
 seed = 42
 savefig = False
 get_hd = True
@@ -99,8 +91,6 @@ random.seed(seed)
 np.random.seed(seed)
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
-
-# TODO: 1. Write the Patient level training
 
 def custom_collate_fn(batch):
     collated = {}

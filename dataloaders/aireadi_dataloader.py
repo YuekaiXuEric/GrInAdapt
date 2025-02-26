@@ -1,5 +1,3 @@
-# Developed by Yuekai Xu, Aaron Honjaya, Zixuan Liu, all rights reserved to GrInAdapt team.
-
 import torch
 from torch.utils.data import Dataset, Sampler
 from torchvision import transforms
@@ -51,8 +49,8 @@ class ResumeSampler(Sampler):
 
 
 class AireadiSegmentation(Dataset):
-    def __init__(self, root, roi, device, mode='train', transform=None, label_dir="OneNorm_test_set", all_success=False):
-        self.dataset = aireadi_dataset(root, roi, device, mode, label_dir, all_success=all_success)
+    def __init__(self, root, roi, device, mode='train', transform=None, all_success=False, fail_image_path=None, npz_path=None):
+        self.dataset = aireadi_dataset(root, roi, device, mode, all_success=all_success, fail_image_path=fail_image_path, npz_path=npz_path)
         self.transform = transform
 
     def __len__(self):
@@ -88,8 +86,8 @@ class AireadiSegmentation(Dataset):
 
 
 class AireadiSegmentation_2transform(Dataset):
-    def __init__(self, root, roi, device, mode='train', transform_weak=None, transform_strong=None, label_dir="OneNorm_test_set", all_success=False):
-        self.dataset = aireadi_dataset(root, roi, device, mode, label_dir, all_success=all_success)
+    def __init__(self, root, roi, device, mode='train', transform_weak=None, transform_strong=None, all_success=False, fail_image_path=None, npz_path=None):
+        self.dataset = aireadi_dataset(root, roi, device, mode, all_success=all_success, fail_image_path=fail_image_path, npz_path=npz_path)
         self.transform_weak = transform_weak
         self.transform_strong = transform_strong
 
@@ -129,8 +127,8 @@ class AireadiSegmentation_2transform(Dataset):
 
 
 class AireadiParticipantSegmentation(Dataset):
-    def __init__(self, root, roi, device, mode='train', transform=None, label_dir="OneNorm_test_set", all_success=False):
-        self.dataset = AireadiParticipantDataset(root, roi, device, mode, label_dir, all_success=all_success)
+    def __init__(self, root, roi, device, mode='train', transform=None, all_success=False, fail_image_path=None, npz_path=None):
+        self.dataset = AireadiParticipantDataset(root, roi, device, mode, all_success=all_success, fail_image_path=fail_image_path, npz_path=npz_path)
         self.transform = transform
 
     def __len__(self):
@@ -148,42 +146,3 @@ class AireadiParticipantSegmentation(Dataset):
             'participant_id': participant_id,
             'samples': return_samples
         }
-
-
-class AireadiParticipantSegmentation_2transform(Dataset):
-    def __init__(self, root, roi, device, mode='train', transform_strong=None, transform_weak=None, label_dir="OneNorm_test_set", all_success=False):
-        self.dataset = AireadiParticipantDataset(root, roi, device, mode, label_dir, all_success=all_success)
-        self.transform_strong = transform_strong
-        self.transform_weak = transform_weak
-
-    def __len__(self):
-        return len(self.dataset)
-
-    def __getitem__(self, idx):
-
-        participant_id, samples = self.dataset[idx]
-
-        samples_strong = []
-        samples_weak = []
-
-        if self.transform_weak is not None:
-            for sample in samples:
-                sample_weak = self.transform_weak(sample)
-                samples_weak.append(sample_weak)
-
-        if self.transform_strong is not None:
-            for sample in samples:
-                sample_strong = self.transform_strong(sample)
-                samples_strong.append(sample_strong)
-
-        sample_strong_return = {
-            'participant_id': participant_id,
-            'samples': samples_strong
-        }
-
-        sample_weak_return = {
-            'participant_id': participant_id,
-            'samples': samples_weak
-        }
-
-        return sample_weak_return, sample_strong_return
