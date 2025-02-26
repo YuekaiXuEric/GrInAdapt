@@ -65,6 +65,12 @@ sh GrInAdapt_Adaption/scripts/eval.sh
 - **`--file_name`**
   Name of the output file or experiment.
 
+- **`--fail_image_path`**
+  Path for low quality or failed registration images
+
+- **`--npz_path`**
+  Path for proto pseudo labels for `train_target_ts_pseudo.py`
+
 - **`--model`**
   Model architecture to use (e.g., `IPN_V2`).
 
