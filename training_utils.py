@@ -1,3 +1,5 @@
+# Developed by Aaron Honjaya, Yuekai Xu, Zixuan Liu, all rights reserved to GrInAdapt team.
+
 import os
 import cv2
 import numpy as np

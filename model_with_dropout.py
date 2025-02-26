@@ -1,10 +1,48 @@
-# Developed by Aaron Honjaya, Yuekai Xu, Zixuan Liu, all rights reserved to GrInAdapt team.
-
 import torch
 import math
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn import init
+# from tool import pyutils
+import torch.sparse as sparse
+import numpy as np
+
+
+def get_indices_of_pairs(radius, size):
+    """
+    Compute pairs of indices (flattened) for pixels in a grid of shape `size`
+    that are within a specified Euclidean distance (`radius`).
+
+    Args:
+      radius (float or int): Maximum distance to consider.
+      size (tuple): (height, width) of the grid.
+
+    Returns:
+      ind_from (np.ndarray): 1D array of indices for the "from" pixels.
+      ind_to (np.ndarray): 1D array of indices for the "to" pixels.
+    """
+    H, W = size
+    ind_from = []
+    ind_to = []
+    for r in range(H):
+        for c in range(W):
+            current_index = r * W + c
+            # Determine neighborhood bounds
+            r_min = max(0, r - int(radius))
+            r_max = min(H - 1, r + int(radius))
+            c_min = max(0, c - int(radius))
+            c_max = min(W - 1, c + int(radius))
+            for nr in range(r_min, r_max + 1):
+                for nc in range(c_min, c_max + 1):
+                    # Skip the pixel itself
+                    if nr == r and nc == c:
+                        continue
+                    # Check the Euclidean distance
+                    if math.sqrt((nr - r) ** 2 + (nc - c) ** 2) <= radius:
+                        neighbor_index = nr * W + nc
+                        ind_from.append(current_index)
+                        ind_to.append(neighbor_index)
+    return np.array(ind_from), np.array(ind_to)
 
 
 # IPN
@@ -48,7 +86,12 @@ class Double3DConv(nn.Module):
 
     def __init__(self, in_channels, out_channels):
         super().__init__()
-        self.double_3dconv = nn.Sequential(nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1), nn.ReLU(inplace=True), nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1), nn.ReLU(inplace=True))
+        self.double_3dconv = nn.Sequential(nn.Conv3d(in_channels, out_channels, kernel_size=3, padding=1),
+                                            nn.ReLU(inplace=True),
+                                            nn.Dropout3d(0.2),
+                                            nn.Conv3d(out_channels, out_channels, kernel_size=3, padding=1),
+                                            nn.ReLU(inplace=True),
+                                            nn.Dropout3d(0.2))
 
     def forward(self, x):
         return self.double_3dconv(x)
@@ -208,6 +251,22 @@ class IPNV2_with_proj_map(IPNV2):
         self.region_size_fc = nn.Linear(feature_dim, 2)
         self.laterality_fc = nn.Linear(feature_dim, 2)
 
+        BatchNorm = torch.nn.BatchNorm2d
+
+        self.aff_faz = nn.Conv2d(128, 100, kernel_size=1, bias=False)
+        torch.nn.init.xavier_uniform_(self.aff_faz.weight, gain=4)
+        self.bn_faz = BatchNorm(100)
+        self.bn_faz.weight.data.fill_(1)
+        self.bn_faz.bias.data.zero_()
+
+        self.from_scratch_layers = [self.aff_faz, self.bn_faz]
+
+        self.predefined_featuresize = 100  # for example, if image_res=512, 512/16=32
+        self.ind_from, self.ind_to = get_indices_of_pairs(radius=4, size=(self.predefined_featuresize, self.predefined_featuresize))
+        self.ind_from = torch.from_numpy(self.ind_from)
+        self.ind_to = torch.from_numpy(self.ind_to)
+
+
 
 
     def apply_2D_head(self, x):
@@ -228,7 +287,7 @@ class IPNV2_with_proj_map(IPNV2):
 
         return logits_cavf, logits_ava
 
-    def forward(self, x, proj_map):
+    def forward(self, x, proj_map, to_dense=False):
         x = self.FPM1(x)
         x = self.FPM2(x)
         x = self.FPM3(x)
@@ -256,7 +315,43 @@ class IPNV2_with_proj_map(IPNV2):
                 region_size_logits = self.region_size_fc(pooled_features)
                 laterality_logits = self.laterality_fc(pooled_features)
 
-                return cavf3D_logits, cavf2D_logits, manufacturer_logits, anatomical_logits, region_size_logits, laterality_logits, features2D
+                f_faz = F.relu(self.bn_faz(self.aff_faz(features2D)))
+
+                # print(f_faz.shape)
+                # exit()
+
+                f_faz = F.interpolate(f_faz, size=(100,100), mode='bilinear', align_corners=True)
+
+                # Compute pairwise affinities on f_faz.
+                if f_faz.size(2) == self.predefined_featuresize and f_faz.size(3) == self.predefined_featuresize:
+                    ind_from = self.ind_from
+                    ind_to = self.ind_to
+                else:
+                    print('featuresize error')
+                    sys.exit()
+                f_faz = f_faz.view(f_faz.size(0), f_faz.size(1), -1)
+                ff = torch.index_select(f_faz, dim=2, index=ind_from.cuda(non_blocking=True))
+                ft = torch.index_select(f_faz, dim=2, index=ind_to.cuda(non_blocking=True))
+                ff = torch.unsqueeze(ff, dim=2)
+                ft = ft.view(ft.size(0), ft.size(1), -1, ff.size(3))
+                aff_faz = torch.exp(-torch.mean(torch.abs(ft-ff), dim=1))
+
+                # aff_faz = torch.nn.functional.interpolate(aff_faz, size=63250, mode='linear', align_corners=False)
+
+                if to_dense:
+                    aff_faz = aff_faz.view(-1).cpu()
+
+                    ind_from_exp = torch.unsqueeze(ind_from, dim=0).expand(ft.size(2), -1).contiguous().view(-1)
+                    indices = torch.stack([ind_from_exp, ind_to])
+                    indices_tp = torch.stack([ind_to, ind_from_exp])
+
+                    area = f_faz.size(2)
+                    indices_id = torch.stack([torch.arange(0, area).long(), torch.arange(0, area).long()])
+
+                    aff_faz = sparse.FloatTensor(torch.cat([indices, indices_id, indices_tp], dim=1),
+                                            torch.cat([aff_faz, torch.ones([area]), aff_faz])).to_dense()
+
+                return cavf3D_logits, cavf2D_logits, manufacturer_logits, anatomical_logits, region_size_logits, laterality_logits, features2D, aff_faz
 
             cavf3D_logits, ava3D_logits = self.apply_head(x)
             cavf2D_logits, ava2D_logits = self.apply_2D_head(proj_map_logits)
@@ -452,6 +547,8 @@ class DoubleConv2D(nn.Module):
         self.relu1 = nn.ReLU(inplace=True)
         self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
 
+        self.dropout1 = nn.Dropout2d(0.2)
+
         if norms[1] == "G":
             self.norm2 = nn.GroupNorm(16, out_channels)
         elif norms[1] == "L":
@@ -462,6 +559,7 @@ class DoubleConv2D(nn.Module):
             raise ValueError("Unsuppored normalization type")
 
         self.relu2 = nn.ReLU(inplace=True)
+        self.dropout2 = nn.Dropout2d(0.2)
 
     def forward(self, x):
         # First block
@@ -475,6 +573,8 @@ class DoubleConv2D(nn.Module):
         x = self.norm1(x)
         x = self.relu1(x)
 
+        x = self.dropout1(x)
+
         # Second block
         x = self.conv2(x)
 
@@ -484,6 +584,7 @@ class DoubleConv2D(nn.Module):
         # x = x.permute(0, 3, 1, 2)
 
         x = self.relu2(x)
+        x = self.dropout2(x)
 
         return x
         # return self.double_conv(x)

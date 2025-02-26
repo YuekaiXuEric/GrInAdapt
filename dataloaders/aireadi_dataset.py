@@ -1,17 +1,16 @@
+# Developed by Yuekai Xu, Aaron Honjaya, Zixuan Liu, all rights reserved to GrInAdapt team.
+
 import pydicom
 import torch
-from abc import ABC, abstractmethod
 import os
 import numpy as np
 import pandas as pd
 from PIL import Image
 from torch.utils.data import Dataset
-from .utils import normalize, save_cavf_image, save_ava_image, get_cavf_RGB, get_ava_RGB
+from .utils import normalize
 from skimage.filters import threshold_otsu
 import torch.nn.functional as F
-import time
 import csv
-import hashlib
 
 
 def load_roi_cache(csv_file):
@@ -194,7 +193,7 @@ def process_data(OCT_img, OCTA_img, device, idx, input_shape=(128, 256, 256),
 
 
 class aireadi_dataset:
-    def __init__(self, root, roi, device, mode='train', label_dir="OneNorm_test_set", all_success=False):
+    def __init__(self, root, roi, device, mode='train', all_success=False, fail_image_path=None, npz_path=None):
         super().__init__()
         self.root = root
         self.roi = roi
@@ -221,41 +220,40 @@ class aireadi_dataset:
 
         full_manifest = pd.read_csv(octa_manifest_tsv, sep='\t')
 
-        split_manifest = full_manifest[full_manifest['participant_id'] != 4279].reset_index(drop=True)
-        split_manifest = split_manifest[split_manifest['participant_id'] != 1269].reset_index(drop=True)
-        # split_manifest = split_manifest[split_manifest['participant_id'] != 1002].reset_index(drop=True)
+        split_manifest = full_manifest
 
         if mode == 'train':
-            self.label_dir  = label_dir
-            fail_df = pd.read_csv('/m-ent1/ent1/zucksliu/yuekai_DA_save/failed_images.csv', dtype=str, sep='\t')
-            # fail_df = pd.read_csv('/data/zucksliu/yuekai_DA_save/failed_images.csv', dtype=str, sep='\t')
 
-            for col in ['patient_id', 'manufacturer_model_name', 'laterality', 'anatomic_region']:
-                fail_df[col] = fail_df[col].str.strip()
+            if not fail_image_path or os.path.exists(fail_image_path):
 
-            for col in ['participant_id', 'manufacturers_model_name', 'laterality', 'anatomic_region']:
-                if col not in full_manifest.columns:
-                    raise ValueError(f"The manifest must contain a '{col}' column for splitting and filtering.")
-                split_manifest[col] = split_manifest[col].astype(str).str.strip()
+                fail_df = pd.read_csv(fail_image_path, dtype=str, sep='\t')
 
-            split_manifest = split_manifest.copy()
-            split_manifest['key'] = (
-                split_manifest['participant_id'] + '_' +
-                split_manifest['manufacturers_model_name'] + '_' +
-                split_manifest['laterality'] + '_' +
-                split_manifest['anatomic_region']
-            )
-            fail_df['key'] = (
-                fail_df['patient_id'] + '_' +
-                fail_df['manufacturer_model_name'] + '_' +
-                fail_df['laterality'] + '_' +
-                fail_df['anatomic_region']
-            )
+                for col in ['patient_id', 'manufacturer_model_name', 'laterality', 'anatomic_region']:
+                    fail_df[col] = fail_df[col].str.strip()
 
-            before_count = len(split_manifest)
-            split_manifest = split_manifest[~split_manifest['key'].isin(fail_df['key'])].reset_index(drop=True)
-            after_count = len(split_manifest)
-            print(f"Filtered out {before_count - after_count} rows from manifest due to failed images (after splitting).")
+                for col in ['participant_id', 'manufacturers_model_name', 'laterality', 'anatomic_region']:
+                    if col not in full_manifest.columns:
+                        raise ValueError(f"The manifest must contain a '{col}' column for splitting and filtering.")
+                    split_manifest[col] = split_manifest[col].astype(str).str.strip()
+
+                split_manifest = split_manifest.copy()
+                split_manifest['key'] = (
+                    split_manifest['participant_id'] + '_' +
+                    split_manifest['manufacturers_model_name'] + '_' +
+                    split_manifest['laterality'] + '_' +
+                    split_manifest['anatomic_region']
+                )
+                fail_df['key'] = (
+                    fail_df['patient_id'] + '_' +
+                    fail_df['manufacturer_model_name'] + '_' +
+                    fail_df['laterality'] + '_' +
+                    fail_df['anatomic_region']
+                )
+
+                before_count = len(split_manifest)
+                split_manifest = split_manifest[~split_manifest['key'].isin(fail_df['key'])].reset_index(drop=True)
+                after_count = len(split_manifest)
+                print(f"Filtered out {before_count - after_count} rows from manifest due to failed images (after splitting).")
         else:
             self.test_manifest = pd.read_csv(test_manifest_path, sep='\t')
 
@@ -283,18 +281,15 @@ class aireadi_dataset:
 
             split_manifest = split_manifest[split_manifest['key'].isin(self.test_manifest['key'])].reset_index(drop=True)
             self.test_manifest.drop(columns=['key'], inplace=True)
-            # self.test_manifest = self.test_manifest[self.test_manifest['participant_id'] != 1002].reset_index(drop=True)
 
         self.manifest = split_manifest.copy()
         self.manifest.drop(columns=['key'], inplace=True)
 
-        # npz_path = '/m-ent1/ent1/zucksliu/SFDA-CBMT_results/history/generate_pseudo_clean/pseudolabels.npz'
-
-        # pseudo_npz = np.load(npz_path, allow_pickle=True)
-        # self.pseudo_label_dic = pseudo_npz['arr_0'].item()
-        # self.uncertain_dic = pseudo_npz['arr_1'].item()
-        # self.proto_pseudo_dic = pseudo_npz['arr_2'].item()
-        # self.prob_dic = pseudo_npz['arr_3'].item()
+        if os.path.exists(npz_path):
+            pseudo_npz = np.load(npz_path, allow_pickle=True)
+            self.proto_pseudo_dic = pseudo_npz['arr_2'].item()
+        else:
+            self.proto_pseudo_dic = {}
 
 
     def __len__(self):
@@ -337,7 +332,8 @@ class aireadi_dataset:
         laterality_label = laterality_map[row["laterality"]]
 
         if self.mode == 'test':
-            data_label = np.load(self.test_set_dir + f"/{row['participant_id']}_{row['laterality']}/{row['manufacturers_model_name']}_{row['anatomic_region']}/label.npy")
+            #TODO: change the path to your test set label
+            data_label = np.load(self.test_set_dir + f"path/to/label.npy")
         else:
             data_label = 1
 
@@ -345,23 +341,21 @@ class aireadi_dataset:
         base = os.path.basename(filename)
         filename_without_ext, _ = os.path.splitext(base)
 
-        # pseudo_label_npz = self.pseudo_label_dic.get(filename_without_ext, None)
-        # uncertain_npz = self.uncertain_dic.get(filename_without_ext, None)
-        # proto_pseudo_npz = self.proto_pseudo_dic.get(filename_without_ext, None)
-        # prob_npz = self.prob_dic.get(filename_without_ext, None)
+        if self.proto_pseudo_dic is not None:
+            proto_pseudo_npz = self.proto_pseudo_dic.get(filename_without_ext, '')
+        else:
+            proto_pseudo_npz = ''
 
-        softmax_dir = os.path.join(self.root, 'retinal_octa/', "OCTA_merge_label/Registration_Merging_Results_v2_new/OCTA/", f"{row['participant_id']}_{row['laterality']}",
-                                    f"{row['manufacturers_model_name']}_{row['anatomic_region']}", "npy")
-        # softmax_dir = os.path.join("/data/zucksliu/ahonjaya_tempura_migrated/ahonjaya/logs/AI-READI-Results/Registration_Merging_Results_v3/OCTA", f"{row['participant_id']}_{row['laterality']}",
-        #                             f"{row['manufacturers_model_name']}_{row['anatomic_region']}", "npy")
+        #TODO: change the path to your intergrated softmax label for individual image
+        softmax_dir = 'path to yout intergrated softmax label for individual image'
+
         softmax_path = os.path.join(softmax_dir, "softmax.npy")
         if os.path.exists(softmax_path):
             merge_softmax_np = np.load(softmax_path)
         else:
-            merge_softmax_np = None
             raise FileNotFoundError(f"Label file not found: {softmax_path}")
 
-        return data, proj_map, row, manufacturer_label, anatomical_label, region_size_label, laterality_label, data_label, merge_softmax_np #pseudo_label_npz, uncertain_npz, proto_pseudo_npz, prob_npz
+        return data, proj_map, row, manufacturer_label, anatomical_label, region_size_label, laterality_label, data_label, merge_softmax_np, proto_pseudo_npz
 
 
 class AireadiParticipantDataset(Dataset):
@@ -372,7 +366,7 @@ class AireadiParticipantDataset(Dataset):
       - 'samples': a list of dictionaries, one for each imaging session for that participant.
         Each sample dictionary has keys such as 'image', 'proj_map', and several labels.
     """
-    def __init__(self, root, roi, device, mode='train', label_dir="OneNorm_test_set", all_success=False):
+    def __init__(self, root, roi, device, mode='train', all_success=False, fail_image_path=None, npz_path=None):
         super().__init__()
         self.root = root
         self.roi = roi
@@ -399,40 +393,40 @@ class AireadiParticipantDataset(Dataset):
 
         full_manifest = pd.read_csv(octa_manifest_tsv, sep='\t')
 
-        split_manifest = full_manifest[full_manifest['participant_id'] != 4279].reset_index(drop=True)
-        split_manifest = split_manifest[split_manifest['participant_id'] != 1269].reset_index(drop=True)
-        # split_manifest = split_manifest[split_manifest['participant_id'] != 1002].reset_index(drop=True)
+        split_manifest = full_manifest
 
         if mode == 'train':
-            self.label_dir  = label_dir
-            fail_df = pd.read_csv('/m-ent1/ent1/zucksliu/yuekai_DA_save/failed_images.csv', dtype=str, sep='\t')
 
-            for col in ['patient_id', 'manufacturer_model_name', 'laterality', 'anatomic_region']:
-                fail_df[col] = fail_df[col].str.strip()
+            if not fail_image_path or os.path.exists(fail_image_path):
 
-            for col in ['participant_id', 'manufacturers_model_name', 'laterality', 'anatomic_region']:
-                if col not in full_manifest.columns:
-                    raise ValueError(f"The manifest must contain a '{col}' column for splitting and filtering.")
-                split_manifest[col] = split_manifest[col].astype(str).str.strip()
+                fail_df = pd.read_csv(fail_image_path, dtype=str, sep='\t')
 
-            split_manifest = split_manifest.copy()
-            split_manifest['key'] = (
-                split_manifest['participant_id'] + '_' +
-                split_manifest['manufacturers_model_name'] + '_' +
-                split_manifest['laterality'] + '_' +
-                split_manifest['anatomic_region']
-            )
-            fail_df['key'] = (
-                fail_df['patient_id'] + '_' +
-                fail_df['manufacturer_model_name'] + '_' +
-                fail_df['laterality'] + '_' +
-                fail_df['anatomic_region']
-            )
+                for col in ['patient_id', 'manufacturer_model_name', 'laterality', 'anatomic_region']:
+                    fail_df[col] = fail_df[col].str.strip()
 
-            before_count = len(split_manifest)
-            split_manifest = split_manifest[~split_manifest['key'].isin(fail_df['key'])].reset_index(drop=True)
-            after_count = len(split_manifest)
-            print(f"Filtered out {before_count - after_count} rows from manifest due to failed images (after splitting).")
+                for col in ['participant_id', 'manufacturers_model_name', 'laterality', 'anatomic_region']:
+                    if col not in full_manifest.columns:
+                        raise ValueError(f"The manifest must contain a '{col}' column for splitting and filtering.")
+                    split_manifest[col] = split_manifest[col].astype(str).str.strip()
+
+                split_manifest = split_manifest.copy()
+                split_manifest['key'] = (
+                    split_manifest['participant_id'] + '_' +
+                    split_manifest['manufacturers_model_name'] + '_' +
+                    split_manifest['laterality'] + '_' +
+                    split_manifest['anatomic_region']
+                )
+                fail_df['key'] = (
+                    fail_df['patient_id'] + '_' +
+                    fail_df['manufacturer_model_name'] + '_' +
+                    fail_df['laterality'] + '_' +
+                    fail_df['anatomic_region']
+                )
+
+                before_count = len(split_manifest)
+                split_manifest = split_manifest[~split_manifest['key'].isin(fail_df['key'])].reset_index(drop=True)
+                after_count = len(split_manifest)
+                print(f"Filtered out {before_count - after_count} rows from manifest due to failed images (after splitting).")
         else:
             self.test_manifest = pd.read_csv(test_manifest_path, sep='\t')
 
@@ -464,16 +458,14 @@ class AireadiParticipantDataset(Dataset):
         self.manifest = split_manifest.copy()
         self.manifest.drop(columns=['key'], inplace=True)
 
+        if os.path.exists(npz_path):
+            pseudo_npz = np.load(npz_path, allow_pickle=True)
+            self.proto_pseudo_dic = pseudo_npz['arr_2'].item()
+        else:
+            self.proto_pseudo_dic = {}
+
         self.grouped = self.manifest.groupby('participant_id')
         self.participant_ids = list(self.grouped.groups.keys())
-
-        # npz_path = '/m-ent1/ent1/zucksliu/SFDA-CBMT_results/generate_pseudo_clean/pseudolabels.npz'
-
-        # pseudo_npz = np.load(npz_path, allow_pickle=True)
-        # self.pseudo_label_dic = pseudo_npz['arr_0'].item()
-        # self.uncertain_dic = pseudo_npz['arr_1'].item()
-        # self.proto_pseudo_dic = pseudo_npz['arr_2'].item()
-        # self.prob_dic = pseudo_npz['arr_3'].item()
 
 
     def __len__(self):
@@ -519,7 +511,8 @@ class AireadiParticipantDataset(Dataset):
             laterality_label = laterality_map.get(row["laterality"], -1)
 
             if self.mode == 'test':
-                data_label = np.load(self.test_set_dir + f"/{row['participant_id']}_{row['laterality']}/{row['manufacturers_model_name']}_{row['anatomic_region']}/label.npy")
+                # TODO: change the path to your test set label
+                data_label = np.load(self.test_set_dir + f"/path/to/label.npy")
             else:
                 data_label = 1
 
@@ -527,17 +520,8 @@ class AireadiParticipantDataset(Dataset):
             base = os.path.basename(filename)
             filename_without_ext, _ = os.path.splitext(base)
 
-            # pseudo_label_npz = self.pseudo_label_dic.get(filename_without_ext, None)
-            # uncertain_npz = self.uncertain_dic.get(filename_without_ext, None)
-            # proto_pseudo_npz = self.proto_pseudo_dic.get(filename_without_ext, None)
-            # prob_npz = self.prob_dic.get(filename_without_ext, None)
-
-            # if pseudo_label_npz is None or uncertain_npz is None or proto_pseudo_npz is None or prob_npz is None:
-            #     print(f"Key {row['participant_id']} and {filename_without_ext} not found in pseudo_label_dic.")
-
-
-            softmax_dir = os.path.join(self.root, 'retinal_octa/', "OCTA_merge_label/Registration_Merging_Results_v2_new/OCTA/", f"{row['participant_id']}_{row['laterality']}",
-                                       f"{row['manufacturers_model_name']}_{row['anatomic_region']}", "npy")
+            #TODO: change the path to your intergrated softmax label for individual image
+            softmax_dir = 'path to yout intergrated softmax label for individual image'
             softmax_path = os.path.join(softmax_dir, "softmax.npy")
             if os.path.exists(softmax_path):
                 merge_softmax_np = np.load(softmax_path)
@@ -556,7 +540,7 @@ class AireadiParticipantDataset(Dataset):
                 'data_label': data_label,
                 'participant_id': row['participant_id'],
                 'row': row,
-                'merge_softmax_label': merge_softmax_np
+                'merge_softmax_label': merge_softmax_np,
             }
             samples.append(sample)
 

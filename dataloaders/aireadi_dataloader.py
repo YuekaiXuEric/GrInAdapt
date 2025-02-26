@@ -1,3 +1,5 @@
+# Developed by Yuekai Xu, Aaron Honjaya, Zixuan Liu, all rights reserved to GrInAdapt team.
+
 import torch
 from torch.utils.data import Dataset, Sampler
 from torchvision import transforms
@@ -57,7 +59,7 @@ class AireadiSegmentation(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, idx):
-        data, proj_map, row, manufacturer, anatomical, region_size, laterality, data_label, merge_softmax_label = self.dataset[idx]
+        data, proj_map, row, manufacturer, anatomical, region_size, laterality, data_label, merge_softmax_label, proto_pseudo_npz = self.dataset[idx]
 
         filename = row['associated_enface_1_file_path']
         base = os.path.basename(filename)
@@ -74,7 +76,8 @@ class AireadiSegmentation(Dataset):
             'data_label': data_label,
             'participant_id': row['participant_id'],
             'merge_softmax_label': merge_softmax_label,
-            'row': row.to_dict()
+            'row': row.to_dict(),
+            'proto_pseudo_npz': proto_pseudo_npz,
         }
         if self.transform is not None:
             sample = self.transform(sample)
@@ -95,7 +98,7 @@ class AireadiSegmentation_2transform(Dataset):
 
     def __getitem__(self, idx):
 
-        data, proj_map, row, manufacturer, anatomical, region_size, laterality, data_label, merge_softmax_label = self.dataset[idx]
+        data, proj_map, row, manufacturer, anatomical, region_size, laterality, data_label, merge_softmax_label, proto_pseudo_npz = self.dataset[idx]
 
         filename = row['associated_enface_1_file_path']
         base = os.path.basename(filename)
@@ -113,10 +116,7 @@ class AireadiSegmentation_2transform(Dataset):
             'participant_id': row['participant_id'],
             'merge_softmax_label': merge_softmax_label,
             'row': row.to_dict(),
-            # 'pseudo_label_npz': pseudo_label_npz,
-            # 'uncertain_npz': uncertain_npz,
-            # 'proto_pseudo_npz': proto_pseudo_npz,
-            # 'prob_npz': prob_npz
+            'proto_pseudo_npz': proto_pseudo_npz,
         }
 
         if self.transform_weak is not None:

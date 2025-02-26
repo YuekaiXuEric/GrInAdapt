@@ -1,10 +1,13 @@
+# Developed by Yuekai Xu, Aaron Honjaya, Zixuan Liu, all rights reserved to GrInAdapt team.
+
 import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-g', '--gpu', type=str, default='1')
-parser.add_argument('--model-file', type=str, default='./logs_train/oneNorm/278.pth')
+parser.add_argument('--model-file', type=str, default='./models/oneNorm/278.pth')
 parser.add_argument('--file_name', type=str, default='Evaluation_image_level_model')
-parser.add_argument('--save_root', type=str, default='/m-ent1/ent1/zucksliu/SFDA-CBMT_results')# /data/zucksliu/SFDA-CBMT_results/20250222_annealing_expr/
+parser.add_argument('--fail_image_path', type=str, default='./fail_image_list.csv')
+parser.add_argument('--save_root', type=str, default='./log_results/')
 parser.add_argument('--model', type=str, default='IPN_V2', help='IPN_V2')
 parser.add_argument('--out-stride', type=int, default=16)
 parser.add_argument('--sync-bn', type=bool, default=True)
@@ -14,7 +17,7 @@ parser.add_argument('--lr', type=float, default=1e-4)
 parser.add_argument('--lr-decrease-rate', type=float, default=0.9, help='ratio multiplied to initial lr')
 parser.add_argument('--lr-decrease-epoch', type=int, default=1, help='interval epoch number for lr decrease')
 
-parser.add_argument('--data-dir', default='/projects/chimera/zucksliu/AI-READI-2.0/dataset/')
+parser.add_argument('--data-dir', default='')
 parser.add_argument('--dataset', type=str, default='AIREADI')
 parser.add_argument('--model-source', type=str, default='OCTA500')
 parser.add_argument('--batch-size', type=int, default=2)
@@ -33,7 +36,6 @@ parser.add_argument("--proj_map_channels", type=int, default=2, help="class numb
 parser.add_argument("--get_2D_pred", type=bool, default=True, help="get 2D head")
 parser.add_argument("--proj_train_ratio", type=int, default=1, help="proj_map H or W to train_size H or W ratio. Currently only supports 1 or 2")
 parser.add_argument("--dc_norms", type = str, default = "NG", help="normalization for Double Conv")
-parser.add_argument("--gt_dir", type = str, default = "GAN_groupnorm_test_set", help="GAN_groupnorm_test_set or OneNorm_test_set")
 
 parser.add_argument('--checkpoint-interval', type=int, default=300,
                     help='Save model checkpoint every K patient updates')
@@ -239,7 +241,7 @@ def adapt_epoch(args, model, optim, train_loader, test_loader, start_step, curre
 
             if len(train_loader) - step > args.checkpoint_interval:
 
-                csv_output_dir = osp.join(args.out, "eval_final")
+                csv_output_dir = osp.join(args.out, "eval")
                 if not osp.exists(csv_output_dir):
                     os.makedirs(csv_output_dir)
 
@@ -297,8 +299,8 @@ def main():
         device=device,
         mode='test',
         transform=custom_transform_weak,
-        label_dir=args.gt_dir,
-        all_success=args.run_all_success
+        all_success=args.run_all_success,
+        fail_image_path=args.fail_image_path,
     )
 
     test_loader = DataLoader(dataset_test, batch_size=1, shuffle=False, num_workers=4)
@@ -333,6 +335,10 @@ def main():
 
     model.train()
 
+    csv_output_dir = osp.join(args.out, "eval")
+    if not osp.exists(csv_output_dir):
+        os.makedirs(csv_output_dir)
+
     eval_final(args, model, test_loader, mode='inital')
     summary_txt_path = osp.join(args.out, f"metrics_summary_teacher_initial.txt")
     summarize_csv_metrics(csv_output_dir, summary_txt_path)
@@ -360,8 +366,8 @@ def main():
         device=device,
         mode='train',
         transform=custom_transform_train,
-        label_dir=args.gt_dir,
-        all_success=args.run_all_success
+        all_success=args.run_all_success,
+        fail_image_path=args.fail_image_path,
     )
 
     g = torch.Generator()
@@ -391,7 +397,7 @@ def main():
 
         scheduler.step()
 
-        csv_output_dir = osp.join(args.out, "eval_final")
+        csv_output_dir = osp.join(args.out, "eval")
         if not osp.exists(csv_output_dir):
             os.makedirs(csv_output_dir)
 
@@ -399,7 +405,6 @@ def main():
         summary_txt_path = osp.join(args.out, f"metrics_summary_teacher_epoch{epoch}_final.txt")
         summarize_csv_metrics(csv_output_dir, summary_txt_path)
 
-    # torch.save({'model_state_dict': model.state_dict()}, args.out + '/last.pth.tar')
     save_ckpt(model, optim, args)
 
 

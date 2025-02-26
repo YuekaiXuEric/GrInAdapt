@@ -1,34 +1,20 @@
+# Developed by Yuekai Xu, Aaron Honjaya, Zixuan Liu, all rights reserved to GrInAdapt team.
+
 import argparse
 import csv
 import os
 import pandas as pd
-
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-
 import os.path as osp
-
 import numpy as np
-
 import torch
-from torch.utils.data import DataLoader, Subset
 from utils.Utils import *
 from utils.metrics import *
-from datetime import datetime
 import torch.backends.cudnn as cudnn
 import random
-import sys
 import json
-import time
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 from utils.metrics import dice_coefficient, assd_coefficient
-
-
-# OCTA 500 import
-import model
-from dataloaders.aireadi_dataloader import AireadiParticipantSegmentation_2transform, AireadiParticipantSegmentation, ResumeSampler
-from dataloaders.custom_octa_transform import Custom3DTransformTrain, Custom3DTransformWeak
-from training_utils import DiceLoss
 
 
 import argparse
@@ -47,7 +33,7 @@ parser.add_argument('--lr', type=float, default=1e-4) # Aaron lr: 0.0001
 parser.add_argument('--lr-decrease-rate', type=float, default=0.9, help='ratio multiplied to initial lr')
 parser.add_argument('--lr-decrease-epoch', type=int, default=1, help='interval epoch number for lr decrease')
 
-parser.add_argument('--data-dir', default='/projects/chimera/zucksliu/AI-READI-2.0/dataset/')
+parser.add_argument('--data-dir', default='')
 parser.add_argument('--dataset', type=str, default='AIREADI')
 parser.add_argument('--model-source', type=str, default='OCTA500')
 parser.add_argument('--batch-size', type=int, default=1)
@@ -150,8 +136,8 @@ def colorize_segmentation(seg_idx):
         4: (0, 255, 0),       # FAZ        -> green
     }
 
-    for cls_id, (r, g, b) in color_map.items():
-        mask = (seg_idx == cls_id)
+    for c_cls_id, (r, g, b) in color_map.items():
+        mask = (seg_idx == c_cls_id)
         seg_color[mask] = [r, g, b]
 
     return seg_color
@@ -229,57 +215,57 @@ def eval_final(args, model, data_loader, current_epoch=None, step=None, mode='Te
     laterality_pred = []
     laterality_prob = []
 
-    per_class_dice_scores_all = {cls: [] for cls in range(5)}
+    per_class_dice_scores_all = {c_cls: [] for c_cls in range(5)}
 
-    per_class_zeiss_disc_6x6_all = {cls: [] for cls in range(5)}
+    per_class_zeiss_disc_6x6_all = {c_cls: [] for c_cls in range(5)}
 
-    per_class_zeiss_disc_6x6_1 = {cls: [] for cls in range(5)}
+    per_class_zeiss_disc_6x6_1 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_zeiss_disc_6x6_4 = {cls: [] for cls in range(5)}
+    per_class_zeiss_disc_6x6_4 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_zeiss_disc_6x6_7 = {cls: [] for cls in range(5)}
+    per_class_zeiss_disc_6x6_7 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_triton_macula_12x12_all = {cls: [] for cls in range(5)}
+    per_class_triton_macula_12x12_all = {c_cls: [] for c_cls in range(5)}
 
-    per_class_triton_macula_12x12_1 = {cls: [] for cls in range(5)}
+    per_class_triton_macula_12x12_1 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_triton_macula_12x12_4 = {cls: [] for cls in range(5)}
+    per_class_triton_macula_12x12_4 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_triton_macula_12x12_7 = {cls: [] for cls in range(5)}
+    per_class_triton_macula_12x12_7 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_macula_6x6_all = {cls: [] for cls in range(5)}
+    per_class_macula_6x6_all = {c_cls: [] for c_cls in range(5)}
 
-    per_class_macula_6x6_1 = {cls: [] for cls in range(5)}
+    per_class_macula_6x6_1 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_macula_6x6_4 = {cls: [] for cls in range(5)}
+    per_class_macula_6x6_4 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_macula_6x6_7 = {cls: [] for cls in range(5)}
+    per_class_macula_6x6_7 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_topcon_mea_all = {cls: [] for cls in range(5)}
+    per_class_topcon_mea_all = {c_cls: [] for c_cls in range(5)}
 
-    per_class_topcon_mea_1 = {cls: [] for cls in range(5)}
+    per_class_topcon_mea_1 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_topcon_mea_4 = {cls: [] for cls in range(5)}
+    per_class_topcon_mea_4 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_topcon_mea_7 = {cls: [] for cls in range(5)}
+    per_class_topcon_mea_7 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_topcon_triton_all = {cls: [] for cls in range(5)}
+    per_class_topcon_triton_all = {c_cls: [] for c_cls in range(5)}
 
-    per_class_topcon_triton_1 = {cls: [] for cls in range(5)}
+    per_class_topcon_triton_1 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_topcon_triton_4 = {cls: [] for cls in range(5)}
+    per_class_topcon_triton_4 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_topcon_triton_7 = {cls: [] for cls in range(5)}
+    per_class_topcon_triton_7 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_zeiss_cirrus_all = {cls: [] for cls in range(5)}
+    per_class_zeiss_cirrus_all = {c_cls: [] for c_cls in range(5)}
 
-    per_class_zeiss_cirrus_1 = {cls: [] for cls in range(5)}
+    per_class_zeiss_cirrus_1 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_zeiss_cirrus_4 = {cls: [] for cls in range(5)}
+    per_class_zeiss_cirrus_4 = {c_cls: [] for c_cls in range(5)}
 
-    per_class_zeiss_cirrus_7 = {cls: [] for cls in range(5)}
+    per_class_zeiss_cirrus_7 = {c_cls: [] for c_cls in range(5)}
 
-    save_dir = osp.join(args.out, f"eval_final")
+    save_dir = osp.join(args.out, f"eval")
 
     with torch.no_grad():
         for batch_idx, sample in tqdm(enumerate(data_loader), total=len(data_loader), desc="Evaluating"):
@@ -324,9 +310,6 @@ def eval_final(args, model, data_loader, current_epoch=None, step=None, mode='Te
                                                         torch.zeros_like(gt_seg[i]),
                                                         gt_seg[i])
 
-            gt_seg = torch.where(gt_seg == 1, torch.zeros_like(gt_seg), gt_seg)
-            pred_seg = torch.where(pred_seg == 1, torch.zeros_like(pred_seg), pred_seg)
-
             image_save_path = osp.join(args.out, f"images")
             if not osp.exists(image_save_path):
                 os.makedirs(image_save_path)
@@ -336,17 +319,36 @@ def eval_final(args, model, data_loader, current_epoch=None, step=None, mode='Te
             dice_per_class = {}
             assd_per_class = {}
             for i in range(pred_seg.size(0)):
-                for cls in range(5):
-                    pred_mask = (pred_seg[i] == cls).float()
-                    gt_mask   = (gt_seg[i]   == cls).float()
+                for c_cls in range(5):
+                    pred_mask = (pred_seg[i] == c_cls).float()
+                    gt_mask   = (gt_seg[i]   == c_cls).float()
+
+                    if c_cls == 4:
+                        # pred_mask, gt_mask are [H, W] at this point
+                        H, W = pred_mask.shape
+                        y1, y2 = int(0.25 * H), int(0.75 * H)
+                        x1, x2 = int(0.25 * W), int(0.75 * W)
+                        #FIXME: Explain
+
+                        # Slice down to center region
+                        pred_mask = pred_mask[y1:y2, x1:x2]
+                        gt_mask = gt_mask[..., y1:y2, x1:x2]
+
                     dice = dice_coefficient(pred_mask, gt_mask)
 
                     pred_mask_np = (pred_mask.cpu().numpy() > 0.5).astype(np.bool_)
                     gt_mask_np   = (gt_mask.cpu().numpy() > 0.5).astype(np.bool_)
+
+                    if len(gt_mask_np.shape) == 2:
+                        pass
+                    elif len(gt_mask_np.shape) == 3:
+                        gt_mask_np = gt_mask_np[0]
+                    else:
+                        raise ValueError(f"Invalid gt_mask_np shape: {gt_mask_np.shape}")
                     assd = assd_coefficient(pred_mask_np, gt_mask_np)
 
-                    dice_per_class[cls] = dice
-                    assd_per_class[cls] = assd
+                    dice_per_class[c_cls] = dice
+                    assd_per_class[c_cls] = assd
 
                 row_dict = {
                     "participant_id": participant_id,
@@ -367,66 +369,66 @@ def eval_final(args, model, data_loader, current_epoch=None, step=None, mode='Te
                     "img_name": img_name
                 }
 
-                per_class_dice_scores_all[cls].append(row_dict)
+                per_class_dice_scores_all[c_cls].append(row_dict)
 
                 if manufacturer_val == 'Zeiss' and anatomic_region_val == 'Optic Disc, 6 x 6':
-                    per_class_zeiss_disc_6x6_all[cls].append(row_dict)
+                    per_class_zeiss_disc_6x6_all[c_cls].append(row_dict)
                     if str(participant_id).startswith('1'):
-                        per_class_zeiss_disc_6x6_1[cls].append(row_dict)
+                        per_class_zeiss_disc_6x6_1[c_cls].append(row_dict)
                     if str(participant_id).startswith('4'):
-                        per_class_zeiss_disc_6x6_4[cls].append(row_dict)
+                        per_class_zeiss_disc_6x6_4[c_cls].append(row_dict)
                     if str(participant_id).startswith('7'):
-                        per_class_zeiss_disc_6x6_7[cls].append(row_dict)
+                        per_class_zeiss_disc_6x6_7[c_cls].append(row_dict)
 
                 # Triton Macula, 12 x 12.
                 if model_name == 'Triton' and anatomic_region_val == 'Macula, 12 x 12':
-                    per_class_triton_macula_12x12_all[cls].append(row_dict)
+                    per_class_triton_macula_12x12_all[c_cls].append(row_dict)
                     if str(participant_id).startswith('1'):
-                        per_class_triton_macula_12x12_1[cls].append(row_dict)
+                        per_class_triton_macula_12x12_1[c_cls].append(row_dict)
                     if str(participant_id).startswith('4'):
-                        per_class_triton_macula_12x12_4[cls].append(row_dict)
+                        per_class_triton_macula_12x12_4[c_cls].append(row_dict)
                     if str(participant_id).startswith('7'):
-                        per_class_triton_macula_12x12_7[cls].append(row_dict)
+                        per_class_triton_macula_12x12_7[c_cls].append(row_dict)
 
                 # Macula, 6 x 6.
                 if anatomic_region_val == 'Macula, 6 x 6':
-                    per_class_macula_6x6_all[cls].append(row_dict)
+                    per_class_macula_6x6_all[c_cls].append(row_dict)
                     if str(participant_id).startswith('1'):
-                        per_class_macula_6x6_1[cls].append(row_dict)
+                        per_class_macula_6x6_1[c_cls].append(row_dict)
                     if str(participant_id).startswith('4'):
-                        per_class_macula_6x6_4[cls].append(row_dict)
+                        per_class_macula_6x6_4[c_cls].append(row_dict)
                     if str(participant_id).startswith('7'):
-                        per_class_macula_6x6_7[cls].append(row_dict)
+                        per_class_macula_6x6_7[c_cls].append(row_dict)
 
                 # Topcon: for MEA.
                 if manufacturer_val == 'Topcon' and model_name == 'Maestro2':
-                    per_class_topcon_mea_all[cls].append(row_dict)
+                    per_class_topcon_mea_all[c_cls].append(row_dict)
                     if str(participant_id).startswith('1'):
-                        per_class_topcon_mea_1[cls].append(row_dict)
+                        per_class_topcon_mea_1[c_cls].append(row_dict)
                     if str(participant_id).startswith('4'):
-                        per_class_topcon_mea_4[cls].append(row_dict)
+                        per_class_topcon_mea_4[c_cls].append(row_dict)
                     if str(participant_id).startswith('7'):
-                        per_class_topcon_mea_7[cls].append(row_dict)
+                        per_class_topcon_mea_7[c_cls].append(row_dict)
 
                 # Topcon: for Triton.
                 if manufacturer_val == 'Topcon' and model_name ==  'Triton':
-                    per_class_topcon_triton_all[cls].append(row_dict)
+                    per_class_topcon_triton_all[c_cls].append(row_dict)
                     if str(participant_id).startswith('1'):
-                        per_class_topcon_triton_1[cls].append(row_dict)
+                        per_class_topcon_triton_1[c_cls].append(row_dict)
                     if str(participant_id).startswith('4'):
-                        per_class_topcon_triton_4[cls].append(row_dict)
+                        per_class_topcon_triton_4[c_cls].append(row_dict)
                     if str(participant_id).startswith('7'):
-                        per_class_topcon_triton_7[cls].append(row_dict)
+                        per_class_topcon_triton_7[c_cls].append(row_dict)
 
                 # Zeiss Cirrus.
                 if manufacturer_val == 'Zeiss' and model_name == 'Cirrus':
-                    per_class_zeiss_cirrus_all[cls].append(row_dict)
+                    per_class_zeiss_cirrus_all[c_cls].append(row_dict)
                     if str(participant_id).startswith('1'):
-                        per_class_zeiss_cirrus_1[cls].append(row_dict)
+                        per_class_zeiss_cirrus_1[c_cls].append(row_dict)
                     if str(participant_id).startswith('4'):
-                        per_class_zeiss_cirrus_4[cls].append(row_dict)
+                        per_class_zeiss_cirrus_4[c_cls].append(row_dict)
                     if str(participant_id).startswith('7'):
-                        per_class_zeiss_cirrus_7[cls].append(row_dict)
+                        per_class_zeiss_cirrus_7[c_cls].append(row_dict)
 
             manufacturer_probs = torch.softmax(manufacturer_logits, dim=1)
             anatomical_probs   = torch.softmax(anatomical_logits, dim=1)
@@ -586,8 +588,8 @@ def save_metrics_to_files(metrics, output_dir):
 
 def write_csv_from_list(dict_list, filename, output_dir):
     all_rows = []
-    for cls in sorted(dict_list.keys()):
-        all_rows.extend(dict_list[cls])
+    for c_cls in sorted(dict_list.keys()):
+        all_rows.extend(dict_list[c_cls])
     if not all_rows:
         return
     keys = ["participant_id", "manufacturer", "manufacturers_model_name", "anatomic_region", "laterality",
@@ -613,125 +615,23 @@ def summarize_csv_metrics(input_dir, output_txt):
         csv_path = os.path.join(input_dir, csv_file)
         df = pd.read_csv(csv_path)
         summary_lines.append(f"Summary for {csv_file}:")
-        for cls in range(5):
-            # Calculate mean and std for dice and assd scores for class 'cls'
-            dice_col = f"dice_{cls}"
-            assd_col = f"assd_{cls}"
+        for c_cls in range(5):
+            dice_col = f"dice_{c_cls}"
+            assd_col = f"assd_{c_cls}"
             if dice_col in df.columns and assd_col in df.columns:
                 dice_mean = df[dice_col].mean()
                 dice_std = df[dice_col].std()
                 assd_mean = df[assd_col].mean()
                 assd_std = df[assd_col].std()
                 summary_lines.append(
-                    f"  Class {cls}: Dice: {dice_mean:.4f} ± {dice_std:.4f}, ASSD: {assd_mean:.4f} ± {assd_std:.4f}"
+                    f"  Class {c_cls}: Dice: {dice_mean:.4f} ± {dice_std:.4f}, ASSD: {assd_mean:.4f} ± {assd_std:.4f}"
                 )
             else:
-                summary_lines.append(f"  Class {cls}: Columns {dice_col} or {assd_col} not found.")
+                summary_lines.append(f"  Class {c_cls}: Columns {dice_col} or {assd_col} not found.")
         summary_lines.append("")
 
     # Save the summary to a text file.
     with open(output_txt, "w") as f:
         f.write("\n".join(summary_lines))
     print(f"Summary saved to {output_txt}")
-
-
-def main():
-    now = datetime.now()
-    args.out = osp.join('/m-ent1/ent1/zucksliu/SFDA-CBMT_results', now.strftime('%Y%m%d_%H%M%S') + args.file_name)
-    if not osp.exists(args.out):
-        os.makedirs(args.out)
-    args.out_file = open(osp.join(args.out, now.strftime('%Y%m%d')+'.txt'), 'w')
-    args.out_file.write(' '.join(sys.argv) + '\n')
-    args.out_file.flush()
-
-    args_dict = vars(args).copy()
-    if "out_file" in args_dict:
-        del args_dict["out_file"]
-
-    json_path = osp.join(args.out, "args.json")
-    with open(json_path, "w") as f:
-        json.dump(args_dict, f, indent=2)
-
-    custom_transform_weak = Custom3DTransformWeak()
-
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    roi_target_depth = 800
-
-    dataset_test = AireadiParticipantSegmentation(
-        root=args.data_dir,
-        roi=roi_target_depth,
-        device=device,
-        mode='test',
-        transform=custom_transform_weak,
-        label_dir=args.gt_dir,
-        all_success=args.run_all_success
-    )
-
-    # train_loader_weak = DataLoader(dataset_train_weak, batch_size=args.batch_size, shuffle=False, num_workers=4, collate_fn=custom_collate_fn)
-    test_loader = DataLoader(dataset_test, batch_size=args.batch_size, shuffle=False, num_workers=4, collate_fn=custom_collate_fn)
-
-    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu
-    device_ids = [int(x) for x in args.gpu.split(',')]
-
-    if args.method == "IPN":
-        model_s = model.IPN(in_channels=args.in_channels, n_classes=args.n_classes)
-        model_t = model.IPN(in_channels=args.in_channels, n_classes=args.n_classes)
-    if args.method == "IPN_V2":
-        model_s = model.IPNV2_with_proj_map(in_channels=args.in_channels, n_classes=args.n_classes,
-                                        proj_map_in_channels=args.proj_map_channels,
-                                        ava_classes=args.ava_classes, get_2D_pred=args.get_2D_pred,
-                                        proj_vol_ratio=args.proj_train_ratio, dc_norms=args.dc_norms)
-        model_t = model.IPNV2_with_proj_map(in_channels=args.in_channels, n_classes=args.n_classes,
-                                        proj_map_in_channels=args.proj_map_channels,
-                                        ava_classes=args.ava_classes, get_2D_pred=args.get_2D_pred,
-                                        proj_vol_ratio=args.proj_train_ratio, dc_norms=args.dc_norms)
-
-    if torch.cuda.is_available():
-        model_s = model_s.cuda()
-        model_t = model_t.cuda()
-    log_str = '==> Loading %s model file: %s' % (model_s.__class__.__name__, args.model_file)
-    print(log_str)
-    args.out_file.write(log_str + '\n')
-    args.out_file.flush()
-    checkpoint = torch.load(args.model_file)
-    model_s.load_state_dict(checkpoint, strict=False)
-    model_t.load_state_dict(checkpoint, strict=False)
-
-    if len(device_ids) > 1:
-        print("Using multiple GPUs")
-        print(device_ids)
-        model_s = torch.nn.DataParallel(model_s, device_ids=device_ids)
-        model_t = torch.nn.DataParallel(model_t, device_ids=device_ids)
-
-    optim = torch.optim.Adam(model_s.parameters(), lr=args.lr, betas=(0.9, 0.99))
-
-    model_s.train()
-    model_t.train()
-    for param in model_t.parameters():
-        param.requires_grad = False
-
-    global last_checkpoint_path
-    last_checkpoint_path = None
-
-    if args.resume_ckpt_path is not None:
-        resume_ckpt = osp.join(args.out, args.resume_ckpt_path)
-        if osp.exists(resume_ckpt):
-            print("Resuming training from checkpoint:", resume_ckpt)
-            checkpoint = torch.load(resume_ckpt)
-            model_s.load_state_dict(checkpoint['model_state_dict'])
-            model_t.load_state_dict(checkpoint['model_state_dict'])
-            # optim.load_state_dict(checkpoint['optimizer_state_dict'])
-            # start_epoch = checkpoint['epoch']
-            # start_step = checkpoint['step']
-            # print(f"Resumed from epoch {start_epoch}, step {start_step}")
-
-    eval_final(args, model_t, test_loader, mode='Final')
-
-    csv_output_dir = osp.join(args.out, "eval_final")
-    summary_txt_path = osp.join(args.out, "metrics_summary.txt")
-    summarize_csv_metrics(csv_output_dir, summary_txt_path)
-
-
-if __name__ == '__main__':
-    main()
 

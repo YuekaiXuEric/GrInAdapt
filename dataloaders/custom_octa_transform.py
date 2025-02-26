@@ -1,3 +1,5 @@
+# Developed by Yuekai Xu, Aaron Honjaya, Zixuan Liu, all rights reserved to GrInAdapt team.
+
 import torch
 import random
 import torch.nn.functional as F

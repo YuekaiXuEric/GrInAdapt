@@ -1,6 +1,7 @@
 
-data_dir='/projects/chimera/zucksliu/AI-READI-2.0/dataset/'
-resume_ckpt_path=''
+data_dir='/path/to/your/dataset/'
+resume_ckpt_path='/path/to/your/checkpoint.pth.tar'
+fail_image_list='/path/to/your/fail_image_list.csv'
 file_name='Training_image_level_model_cos_annealing_av_faz_lr8e-5_noise_0.05_0.1'
 
 python train_target_single_model.py \

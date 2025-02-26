@@ -1,3 +1,5 @@
+# Developed by Yuekai Xu, Aaron Honjaya, Zixuan Liu, all rights reserved to GrInAdapt team.
+
 import argparse
 import csv
 import pandas as pd
@@ -5,8 +7,9 @@ import pandas as pd
 parser = argparse.ArgumentParser()
 parser.add_argument('-g', '--gpu', type=str, default='1')
 parser.add_argument('--model-file', type=str, default='./models/oneNorm/278.pth')
-parser.add_argument('--save_root', type=str, default='/m-ent1/ent1/zucksliu/SFDA-CBMT_results')# TODO
+parser.add_argument('--save_root', type=str, default='./log_results/')
 parser.add_argument('--file_name', type=str, default='Evaluation_image_level_model')
+parser.add_argument('--fail_image_path', type=str, default='./fail_image_list.csv')
 parser.add_argument('--model', type=str, default='IPN_V2', help='IPN_V2')
 parser.add_argument('--out-stride', type=int, default=16)
 parser.add_argument('--sync-bn', type=bool, default=True)
@@ -16,7 +19,7 @@ parser.add_argument('--lr', type=float, default=1e-4)
 parser.add_argument('--lr-decrease-rate', type=float, default=0.9, help='ratio multiplied to initial lr')
 parser.add_argument('--lr-decrease-epoch', type=int, default=1, help='interval epoch number for lr decrease')
 
-parser.add_argument('--data-dir', default='/projects/chimera/zucksliu/AI-READI-2.0/dataset/') # TODO
+parser.add_argument('--data-dir', default='')
 parser.add_argument('--dataset', type=str, default='AIREADI')
 parser.add_argument('--model-source', type=str, default='OCTA500')
 parser.add_argument('--batch-size', type=int, default=2)
@@ -35,7 +38,6 @@ parser.add_argument("--proj_map_channels", type=int, default=2, help="class numb
 parser.add_argument("--get_2D_pred", type=bool, default=True, help="get 2D head")
 parser.add_argument("--proj_train_ratio", type=int, default=1, help="proj_map H or W to train_size H or W ratio. Currently only supports 1 or 2")
 parser.add_argument("--dc_norms", type = str, default = "NG", help="normalization for Double Conv")
-parser.add_argument("--gt_dir", type = str, default = "GAN_groupnorm_test_set", help="GAN_groupnorm_test_set or OneNorm_test_set")
 
 parser.add_argument('--checkpoint-interval', type=int, default=300,
                     help='Save model checkpoint every K patient updates')
@@ -48,8 +50,6 @@ parser.add_argument('--annealing-factor', default='cos', help='annealing factor 
 print("Arguments defined:", parser._option_string_actions.keys())
 
 args = parser.parse_args()
-
-print(args.annealing_factor)
 
 import os
 
@@ -75,7 +75,7 @@ from tqdm import tqdm
 import model
 from dataloaders.aireadi_dataloader import AireadiSegmentation, AireadiSegmentation_2transform, ResumeSampler
 from dataloaders.custom_octa_transform import Custom3DTransformTrain, Custom3DTransformWeak
-from training_utils import DiceLoss, FocalLoss
+from training_utils import DiceLoss
 from eval_image import eval_final, summarize_csv_metrics
 
 seed = 42
@@ -215,7 +215,7 @@ def save_segmentation_png_train(merge_pseudo_label, gt_seg, pred_seg, pred_seg_s
     plt.close(fig)
 
 
-def adapt_epoch(args, model_t, model_s, optim, train_loader, test_loader, start_step, current_epoch, seg_loss_weight=None):
+def adapt_epoch(args, model_t, model_s, optim, train_loader, test_loader, start_step, current_epoch):
     global last_checkpoint_path
     step = 0
     total_steps = len(train_loader)
@@ -228,7 +228,6 @@ def adapt_epoch(args, model_t, model_s, optim, train_loader, test_loader, start_
         map_w = sample_w['proj_map'].squeeze(1)
         imgs_s = sample_s['image'].squeeze(1)
         map_s = sample_s['proj_map'].squeeze(1)
-        img_name = sample_w['img_name']
 
         manufacturer_labels = torch.tensor(sample_w['manufacturer']).long().cuda()
         anatomical_labels = torch.tensor(sample_w['anatomical']).long().cuda()
@@ -340,7 +339,7 @@ def adapt_epoch(args, model_t, model_s, optim, train_loader, test_loader, start_
             save_ckpt(model_t, model_s, optim, args, current_epoch, step)
 
             if len(train_loader) - step > args.checkpoint_interval:
-                csv_output_dir = osp.join(args.out, "eval_final")
+                csv_output_dir = osp.join(args.out, "eval")
                 if not osp.exists(csv_output_dir):
                     os.makedirs(csv_output_dir)
 
@@ -464,8 +463,8 @@ def main():
         mode='train',
         transform_strong=custom_transform_train,
         transform_weak=custom_transform_weak,
-        label_dir=args.gt_dir,
-        all_success=args.run_all_success
+        all_success=args.run_all_success,
+        fail_image_path=args.fail_image_path,
     )
 
     dataset_test = AireadiSegmentation(
@@ -474,11 +473,15 @@ def main():
         device=device,
         mode='test',
         transform=custom_transform_weak,
-        label_dir=args.gt_dir,
-        all_success=args.run_all_success
+        all_success=args.run_all_success,
+        fail_image_path=args.fail_image_path,
     )
 
     test_loader = DataLoader(dataset_test, batch_size=1, shuffle=False, num_workers=4)
+
+    csv_output_dir = osp.join(args.out, "eval")
+    if not osp.exists(csv_output_dir):
+        os.makedirs(csv_output_dir)
 
     eval_final(args, model_t, test_loader, mode='teacher')
     summary_txt_path = osp.join(args.out, f"metrics_summary_teacher_initial.txt")
@@ -511,7 +514,7 @@ def main():
 
         scheduler.step()
 
-        csv_output_dir = osp.join(args.out, "eval_final")
+        csv_output_dir = osp.join(args.out, "eval")
         if not osp.exists(csv_output_dir):
             os.makedirs(csv_output_dir)
 
@@ -522,7 +525,6 @@ def main():
         summary_txt_path = osp.join(args.out, f"metrics_summary_student_epoch{epoch}_final.txt")
         summarize_csv_metrics(csv_output_dir, summary_txt_path)
 
-    # torch.save({'model_state_dict': model_t.state_dict()}, args.out + '/last.pth.tar')
     save_ckpt(model_t, model_s, optim, args)
 
 

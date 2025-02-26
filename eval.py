@@ -1,3 +1,5 @@
+# Developed by Yuekai Xu, Aaron Honjaya, Zixuan Liu, all rights reserved to GrInAdapt team.
+
 import argparse
 import csv
 import pandas as pd
@@ -5,7 +7,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-g', '--gpu', type=str, default='2')
-parser.add_argument('--model-file', type=str, default='./logs_train/oneNorm/278.pth')
+parser.add_argument('--model-file', type=str, default='./models/oneNorm/278.pth')
 parser.add_argument('--save_root', type=str, default='/m-ent1/ent1/zucksliu/SFDA-CBMT_results/evaluation_results')# /data/zucksliu/SFDA-CBMT_results/20250222_annealing_expr/
 parser.add_argument('--file_name', type=str, default='Evaluation_image_level_model')
 parser.add_argument('--model', type=str, default='IPN_V2', help='IPN_V2')
@@ -17,7 +19,7 @@ parser.add_argument('--lr', type=float, default=1e-4) # Aaron lr: 0.0001
 parser.add_argument('--lr-decrease-rate', type=float, default=0.9, help='ratio multiplied to initial lr')
 parser.add_argument('--lr-decrease-epoch', type=int, default=1, help='interval epoch number for lr decrease')
 
-parser.add_argument('--data-dir', default='/projects/chimera/zucksliu/AI-READI-2.0/dataset/')
+parser.add_argument('--data-dir', default='')
 parser.add_argument('--dataset', type=str, default='AIREADI')
 parser.add_argument('--model-source', type=str, default='OCTA500')
 parser.add_argument('--batch-size', type=int, default=1)
@@ -45,6 +47,7 @@ parser.add_argument('--checkpoint-interval', type=int, default=400,
 parser.add_argument('--resume_ckpt_path', type=str, default=None, help='Path to resume checkpoint')
 parser.add_argument("--mask_optic_disc", type=bool, default=False, help="mask out the optic disc")
 parser.add_argument("--run_all_success", type=bool, default=False, help="run the training and testing for all the success cases")
+parser.add_argument("--save_full_level_site", type=bool, default=False, help="save the full level site")
 args = parser.parse_args()
 
 import os
@@ -290,25 +293,6 @@ def eval_final(args, model, data_loader, current_epoch=None, step=None, mode='Te
                     cavf_pred3D, _, manufacturer_logits, anatomical_logits, region_size_logits, laterality_logits, _ = model(data, proj_map)
                     cavf_pred3D = torch.softmax(cavf_pred3D, dim=1)
 
-                    # label_dir = os.path.join('/projects/chimera/zucksliu/AI-READI-2.0/dataset/', 'retinal_octa/Averaged_results_test', f"{row['participant_id']}",
-                    #                     f"{row['manufacturers_model_name']}_{row['laterality']}_{row['anatomic_region']}", "800")
-                    # label_path = os.path.join(label_dir, "CAVF_softmax.npy")
-
-                    # label_dir = os.path.join('/data/zucksliu/ahonjaya_tempura_migrated/ahonjaya/logs/AI-READI-Results/Registration_Merging_Results_v3/OCTA', f"{row['participant_id']}_{row['laterality']}",
-                    #                     f"{row['manufacturers_model_name']}_{row['anatomic_region']}", "npy")
-                    # label_path = os.path.join(label_dir, "softmax.npy")
-
-                    # label_dir = os.path.join('/projects/chimera/zucksliu/AI-READI-2.0/dataset/retinal_octa/GAN_groupnorm_test_set', f"{row['participant_id']}",
-                    #                     f"{row['manufacturers_model_name']}_{row['laterality']}_{row['anatomic_region']}")
-                    # label_path = os.path.join(label_dir, "CAVF_softmax.npy")
-
-                    # if os.path.exists(label_path):
-                    #     cavf_pred3D = np.load(label_path)
-                    #     cavf_pred3D = torch.from_numpy(cavf_pred3D).unsqueeze(0)
-                    #     # cavf_pred3D = cavf_pred3D.permute(0, 3, 1, 2)
-                    # else:
-                    #     raise ValueError(f"Label path {label_path} does not exist.")
-
                     gt_seg = sample['data_label']
                     if isinstance(gt_seg, np.ndarray):
                         gt_seg = torch.from_numpy(gt_seg).to(data.device)
@@ -330,7 +314,6 @@ def eval_final(args, model, data_loader, current_epoch=None, step=None, mode='Te
                     image_save_path = osp.join(args.out, f"images")
                     if not osp.exists(image_save_path):
                         os.makedirs(image_save_path)
-                    # save_segmentation_png(gt_seg, pred_seg, proj_map, sample, save_dir=image_save_path, prefix=f'Evaluation_batch_idx{batch_idx}_{i}_{idx}', mode='eval')
 
 
                     dice_per_class = {}
@@ -343,12 +326,14 @@ def eval_final(args, model, data_loader, current_epoch=None, step=None, mode='Te
                             else:
                                 pred_mask = ((pred_seg[i] == 0) | (pred_seg[i] == 1)).float()
                                 gt_mask = ((gt_seg[i] == 0) | (gt_seg[i] == 1)).float()
+                                #FIXME: Explain
 
                             if c_cls == 4:
                                 # pred_mask, gt_mask are [H, W] at this point
                                 H, W = pred_mask.shape
                                 y1, y2 = int(0.25 * H), int(0.75 * H)
                                 x1, x2 = int(0.25 * W), int(0.75 * W)
+                                #FIXME: Explain
 
                                 # Slice down to center region
                                 pred_mask = pred_mask[y1:y2, x1:x2]
@@ -502,10 +487,6 @@ def eval_final(args, model, data_loader, current_epoch=None, step=None, mode='Te
                     laterality_gt.append(laterality_labels.cpu().numpy())
                     laterality_pred.append(laterality_preds.cpu().numpy())
                     laterality_prob.append(laterality_probs.cpu().numpy())
-            #         break
-            #     break
-            # if batch_idx > 2:
-            #     break
 
     manufacturer_gt = np.array(manufacturer_gt)
     manufacturer_pred = np.array(manufacturer_pred)
@@ -569,51 +550,53 @@ def eval_final(args, model, data_loader, current_epoch=None, step=None, mode='Te
     # Add subset segmentation scores.
     metrics['per_class_zeiss_disc_6x6_all'] = per_class_zeiss_disc_6x6_all
 
-    # metrics['per_class_zeiss_disc_6x6_1'] = per_class_zeiss_disc_6x6_1
-
-    # metrics['per_class_zeiss_disc_6x6_4'] = per_class_zeiss_disc_6x6_4
-
-    # metrics['per_class_zeiss_disc_6x6_7'] = per_class_zeiss_disc_6x6_7
-
     metrics['per_class_triton_macula_12x12_all'] = per_class_triton_macula_12x12_all
-
-    # metrics['per_class_triton_macula_12x12_1'] = per_class_triton_macula_12x12_1
-
-    # metrics['per_class_triton_macula_12x12_4'] = per_class_triton_macula_12x12_4
-
-    # metrics['per_class_triton_macula_12x12_7'] = per_class_triton_macula_12x12_7
 
     metrics['per_class_macula_6x6_all'] = per_class_macula_6x6_all
 
-    # metrics['per_class_macula_6x6_1'] = per_class_macula_6x6_1
-
-    # metrics['per_class_macula_6x6_4'] = per_class_macula_6x6_4
-
-    # metrics['per_class_macula_6x6_7'] = per_class_macula_6x6_7
-
     metrics['per_class_topcon_maestro2_all'] = per_class_topcon_maestro2_all
-
-    # metrics['per_class_topcon_maestro2_1'] = per_class_topcon_maestro2_1
-
-    # metrics['per_class_topcon_maestro2_4'] = per_class_topcon_maestro2_4
-
-    # metrics['per_class_topcon_maestro2_7'] = per_class_topcon_maestro2_7
 
     metrics['per_class_topcon_triton_all'] = per_class_topcon_triton_all
 
-    # metrics['per_class_topcon_triton_1'] = per_class_topcon_triton_1
-
-    # metrics['per_class_topcon_triton_4'] = per_class_topcon_triton_4
-
-    # metrics['per_class_topcon_triton_7'] = per_class_topcon_triton_7
-
     metrics['per_class_zeiss_cirrus_all'] = per_class_zeiss_cirrus_all
 
-    # metrics['per_class_zeiss_cirrus_1'] = per_class_zeiss_cirrus_1
 
-    # metrics['per_class_zeiss_cirrus_4'] = per_class_zeiss_cirrus_4
+    if args.save_full_level_site:
+        metrics['per_class_zeiss_cirrus_1'] = per_class_zeiss_cirrus_1
 
-    # metrics['per_class_zeiss_cirrus_7'] = per_class_zeiss_cirrus_7
+        metrics['per_class_zeiss_cirrus_4'] = per_class_zeiss_cirrus_4
+
+        metrics['per_class_zeiss_cirrus_7'] = per_class_zeiss_cirrus_7
+
+        metrics['per_class_zeiss_cirrus_1'] = per_class_zeiss_cirrus_1
+
+        metrics['per_class_zeiss_cirrus_4'] = per_class_zeiss_cirrus_4
+
+        metrics['per_class_zeiss_cirrus_7'] = per_class_zeiss_cirrus_7
+
+        metrics['per_class_topcon_maestro2_1'] = per_class_topcon_maestro2_1
+
+        metrics['per_class_topcon_maestro2_4'] = per_class_topcon_maestro2_4
+
+        metrics['per_class_topcon_maestro2_7'] = per_class_topcon_maestro2_7
+
+        metrics['per_class_macula_6x6_1'] = per_class_macula_6x6_1
+
+        metrics['per_class_macula_6x6_4'] = per_class_macula_6x6_4
+
+        metrics['per_class_macula_6x6_7'] = per_class_macula_6x6_7
+
+        metrics['per_class_triton_macula_12x12_1'] = per_class_triton_macula_12x12_1
+
+        metrics['per_class_triton_macula_12x12_4'] = per_class_triton_macula_12x12_4
+
+        metrics['per_class_triton_macula_12x12_7'] = per_class_triton_macula_12x12_7
+
+        metrics['per_class_zeiss_disc_6x6_1'] = per_class_zeiss_disc_6x6_1
+
+        metrics['per_class_zeiss_disc_6x6_4'] = per_class_zeiss_disc_6x6_4
+
+        metrics['per_class_zeiss_disc_6x6_7'] = per_class_zeiss_disc_6x6_7
 
     save_metrics_to_files(metrics, save_dir)
 

@@ -1,17 +1,15 @@
-
-#!/usr/bin/env python
+# Developed by Yuekai Xu, Aaron Honjaya, Zixuan Liu, all rights reserved to GrInAdapt team.
 
 import argparse
 import os
 import os.path as osp
 import torch.nn.functional as F
+import torch.nn as nn
 
 import torch
 from torch.autograd import Variable
 import tqdm
-from dataloaders import fundus_dataloader as DL
 from torch.utils.data import DataLoader
-from dataloaders import custom_transforms as tr
 from torchvision import transforms
 
 from matplotlib.pyplot import imsave
@@ -19,14 +17,13 @@ from utils.Utils import *
 from utils.metrics import *
 from datetime import datetime
 import pytz
-from networks.deeplabv3 import *
 import cv2
 import torch.backends.cudnn as cudnn
 import random
 from utils.metrics import *
 import os.path as osp
 
-import model
+import model_with_dropout as model
 from dataloaders.aireadi_dataloader import AireadiSegmentation, AireadiSegmentation_2transform, ResumeSampler
 from dataloaders.custom_octa_transform import Custom3DTransformTrain, Custom3DTransformWeak
 
@@ -146,10 +143,11 @@ def retain_largest_cluster_in_circle(proto_pseudo, radius=80):
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model-file', type=str, default='/homes/gws/zucksliu/yuekai/SFDA-CBMT/logs_train/oneNorm/278.pth')
+    parser.add_argument('--model-file', type=str, default='./models/oneNorm/278.pth')
     parser.add_argument('--dataset', type=str, default='AIREADI')#Domain1
     parser.add_argument('--batch_size', type=int, default=1)
     parser.add_argument('--source', type=str, default='OCTA500')#Domain4
+    parser.add_argument('--save_root', type=str, default='./log_results/')
     parser.add_argument('-g', '--gpu', type=str, default='3')
     parser.add_argument('--data-dir', default='/projects/chimera/zucksliu/AI-READI-2.0/dataset/')
     parser.add_argument('--out-stride',type=int,default=16)
@@ -227,8 +225,8 @@ if __name__ == '__main__':
     proto_pseudo_dic = {}
     prob_dic = {}
 
-    save_dir = '/m-ent1/ent1/zucksliu/SFDA-CBMT_results/v_bg_generate_pseudo_clean/'
-    save_image_dir = '/m-ent1/ent1/zucksliu/SFDA-CBMT_results/v_bg_generate_pseudo_clean/images'
+    save_dir = args.save_root
+    save_image_dir = os.path.join(save_dir, 'images')
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     if not os.path.exists(save_image_dir):
@@ -254,8 +252,8 @@ if __name__ == '__main__':
             for i in range(num_ensembles):
                 with torch.no_grad():
                     out, _, _, _, _, _, feat, _ = model(data, proj_map)
-                    fg_logits = out[:, 3:4, ...]
-                    bg_logits = torch.cat([out[:, :3, ...], out[:, 4:, ...]], dim=1).mean(dim=1, keepdim=True)
+                    fg_logits = out[:, 4:5, ...]
+                    bg_logits = out[:, :4, ...].mean(dim=1, keepdim=True)
                     fg_exp = torch.exp(fg_logits)
                     bg_exp = torch.exp(bg_logits)
                     total = fg_exp + bg_exp + 1e-8
@@ -335,39 +333,17 @@ if __name__ == '__main__':
             proto_pseudo_1[distance_1_obj < distance_1_bck] = 1.0
             proto_pseudo = torch.cat((proto_pseudo_0, proto_pseudo_1), dim=1)
             proto_pseudo = F.interpolate(proto_pseudo, size=data.size()[3:], mode='nearest')
-            # proto_pseudo is the prototypical pseudo label
-            # By measuring the distance between the feature and the centroid of the high confidence pixels in class 0 and class 1
-            # Why it is reliable?
-            # Why mask_1_obj and mask_1_bck are same?
 
             debugc = 1
 
             pseudo_label = pseudo_label.detach().cpu().numpy()
             std_map = std_map.detach().cpu().numpy()
             proto_pseudo = proto_pseudo.detach().cpu().numpy()
-
-            # proto_pseudo = retain_largest_cluster_in_circle(proto_pseudo, radius=80)
-            # distance_0_obj = distance_0_obj.detach().cpu().numpy()
-            # distance_0_bck = distance_0_bck.detach().cpu().numpy()
-            # distance_1_obj = distance_1_obj.detach().cpu().numpy()
-            # distance_1_bck = distance_1_bck.detach().cpu().numpy()
-            # centroid_0_obj = centroid_0_obj.detach().cpu().numpy()
-            # centroid_0_bck = centroid_0_bck.detach().cpu().numpy()
-            # centroid_1_obj = centroid_1_obj.detach().cpu().numpy()
-            # centroid_1_bck = centroid_1_bck.detach().cpu().numpy()
             prob = prob.detach().cpu().numpy()
             for i in range(prediction.shape[0]): # default fea_channels=128
                 pseudo_label_dic[img_name[i]] = pseudo_label[i] # simple pseudo label, shape: [2, H, W]
                 uncertain_dic[img_name[i]] = std_map[i] # uncertainty map, shape: [2, H, W]
                 proto_pseudo_dic[img_name[i]] = proto_pseudo[i] # prototypical pseudo label, shape: [2, H, W]
-                # distance_0_obj_dic[img_name[i]] = distance_0_obj[i] # distance map_0_obj, shape: [1, fea_H, fea_W]
-                # distance_0_bck_dic[img_name[i]] = distance_0_bck[i] # distance map_0_bck, shape: [1, fea_H, fea_W]
-                # distance_1_obj_dic[img_name[i]] = distance_1_obj[i] # distance map_1_obj, shape: [1, fea_H, fea_W]
-                # distance_1_bck_dic[img_name[i]] = distance_1_bck[i] # distance map_1_bck, shape: [1, fea_H, fea_W]
-                # centroid_0_obj_dic[img_name[i]] = centroid_0_obj # centroid_0_obj, shape: [fea_channel, 1, 1]
-                # centroid_0_bck_dic[img_name[i]] = centroid_0_bck # centroid_0_bck, shape: [fea_channel, 1, 1]
-                # centroid_1_obj_dic[img_name[i]] = centroid_1_obj # centroid_1_obj, shape: [fea_channel, 1, 1]
-                # centroid_1_bck_dic[img_name[i]] = centroid_1_bck # centroid_1_bck, shape: [fea_channel, 1, 1]
                 prob_dic[img_name[i]] = prob[i] # probability map, range [0,1], shape: [2, H, W]
 
                 proto_pseudo_np = proto_pseudo[i]  # shape: [2, H, W]
@@ -412,20 +388,4 @@ if __name__ == '__main__':
 
     save_path = os.path.join(save_dir, 'pseudolabels.npz')
     np.savez(save_path, pseudo_label_dic, uncertain_dic, proto_pseudo_dic, prob_dic)
-
-    # elif args.dataset=="Domain2":
-    #     np.savez('./generate_pseudo/pseudolabel_D2', pseudo_label_dic, uncertain_dic, proto_pseudo_dic, prob_dic,
-    #                      distance_0_obj_dic, distance_0_bck_dic, distance_1_obj_dic, distance_1_bck_dic,
-    #                      centroid_0_obj_dic, centroid_0_bck_dic, centroid_1_obj_dic, centroid_1_bck_dic
-    #                      )
-    # elif args.dataset=="Domain1":
-    #     np.savez('./generate_pseudo/pseudolabel_D1', pseudo_label_dic, uncertain_dic, proto_pseudo_dic, prob_dic,
-    #                      distance_0_obj_dic, distance_0_bck_dic, distance_1_obj_dic, distance_1_bck_dic,
-    #                      centroid_0_obj_dic, centroid_0_bck_dic, centroid_1_obj_dic, centroid_1_bck_dic
-    #                      )
-    # elif args.dataset=="Domain4":
-    #     np.savez('./generate_pseudo/pseudolabel_D4', pseudo_label_dic, uncertain_dic, proto_pseudo_dic, prob_dic,
-    #                      distance_0_obj_dic, distance_0_bck_dic, distance_1_obj_dic, distance_1_bck_dic,
-    #                      centroid_0_obj_dic, centroid_0_bck_dic, centroid_1_obj_dic, centroid_1_bck_dic
-    #     )
 

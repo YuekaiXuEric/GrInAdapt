@@ -1,8 +1,7 @@
-
-data_dir='/projects/chimera/zucksliu/AI-READI-2.0/dataset/'
-resume_ckpt_path='/m-ent1/ent1/zucksliu/SFDA-CBMT_results/20250220_172011_image_level_merge_label_no_disc/after_adaptation.pth.tar'
+data_dir='/path/to/your/dataset/'
+resume_ckpt_path='/path/to/your/checkpoint.pth.tar'
+fail_image_list='/path/to/your/fail_image_list.csv'
 file_name='Training_image_level_model_cos_annealing_av_faz_lr8e-5_noise_0.05_0.1'
-# save_root='/data/zucksliu/SFDA-CBMT_results/'
 
 python train_target_ts.py \
         --data-dir ${data_dir} \
