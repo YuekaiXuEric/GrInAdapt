@@ -140,9 +140,6 @@ sh GrInAdapt_Adaption/scripts/eval.sh
 - **`--dc_norms`**
   Normalization type for double convolution layers.
 
-- **`--gt_dir`**
-  Directory name or identifier for ground-truth data.
-
 - **`--checkpoint-interval`**
   Interval (in steps) at which to save model checkpoints.
 
@@ -164,3 +161,6 @@ sh GrInAdapt_Adaption/scripts/eval.sh
 
 # What the result will look like:
 save_npy:
+
+
+Hiiii this is a test

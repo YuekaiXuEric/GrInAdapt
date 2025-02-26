@@ -200,6 +200,7 @@ class aireadi_dataset:
         self.octa_dir = root
         self.test_manifest_path = None
 
+        # TODO change the path to your train and test path
         if mode == 'train' and all_success:
             octa_manifest_tsv = self.octa_dir + 'success_manifest_train.tsv'
         elif mode == 'test' and all_success:
@@ -357,13 +358,6 @@ class aireadi_dataset:
 
 
 class AireadiParticipantDataset(Dataset):
-    """
-    This dataset groups all entries (rows) from the manifest that share the same
-    participant_id. For each participant, __getitem__ returns a dictionary containing:
-      - 'participant_id': the participant id (taken from the manifest), and
-      - 'samples': a list of dictionaries, one for each imaging session for that participant.
-        Each sample dictionary has keys such as 'image', 'proj_map', and several labels.
-    """
     def __init__(self, root, roi, device, mode='train', all_success=False, fail_image_path=None, npz_path=None):
         super().__init__()
         self.root = root
@@ -373,6 +367,7 @@ class AireadiParticipantDataset(Dataset):
         self.octa_dir = root
         self.test_manifest_path = None
 
+        # TODO change the path to your train and test path
         if mode == 'train' and all_success:
             octa_manifest_tsv = self.octa_dir + 'success_manifest_train.tsv'
         elif mode == 'test' and all_success:

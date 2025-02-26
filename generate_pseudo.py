@@ -142,9 +142,9 @@ if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--model-file', type=str, default='./models/oneNorm/278.pth')
-    parser.add_argument('--dataset', type=str, default='AIREADI')#Domain1
+    parser.add_argument('--dataset', type=str, default='AIREADI')
     parser.add_argument('--batch_size', type=int, default=1)
-    parser.add_argument('--source', type=str, default='OCTA500')#Domain4
+    parser.add_argument('--source', type=str, default='OCTA500')
     parser.add_argument('--save_root', type=str, default='./log_results/')
     parser.add_argument('-g', '--gpu', type=str, default='3')
     parser.add_argument('--data-dir', default='')
@@ -163,7 +163,6 @@ if __name__ == '__main__':
     parser.add_argument("--get_2D_pred", type=bool, default=True, help="get 2D head")
     parser.add_argument("--proj_train_ratio", type=int, default=1, help="proj_map H or W to train_size H or W ratio. Currently only supports 1 or 2")
     parser.add_argument("--dc_norms", type = str, default = "NG", help="normalization for Double Conv")
-    parser.add_argument("--gt_dir", type = str, default = "OneNorm_test_set", help="GAN_groupnorm_test_set or OneNorm_test_set")
 
     parser.add_argument('--checkpoint-interval', type=int, default=1000,
                         help='Save model checkpoint every K patient updates')
@@ -202,7 +201,9 @@ if __name__ == '__main__':
         device=device,
         mode='train',
         transform=custom_transform_test,
-        label_dir=args.gt_dir
+        all_success=args.run_all_success,
+        fail_image_path=args.fail_image_path,
+        npz_path = args.npz_path,
     )
 
     g = torch.Generator()

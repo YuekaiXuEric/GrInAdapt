@@ -83,8 +83,6 @@ np.random.seed(seed)
 torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 
-# TODO: 1. Write the Patient level training
-
 def custom_collate_fn(batch):
     collated = {}
     for key in batch[0]:
@@ -155,7 +153,6 @@ def save_segmentation_png(gt_seg, pred_seg, map_s, sample, score_per_class, save
 
     for i in range(N):
         if save_npy:
-            # np.save(osp.join(save_dir, f"{prefix}_gt_{i}.npy"), gt_seg[i])
             np.save(osp.join(save_dir, f"{prefix}_pred_{i}.npy"), pred_seg[i])
         proj_img = proj_imgs[i]
         proj_color = (np.stack([proj_img] * 3, axis=-1) * 255).astype(np.uint8)
@@ -324,14 +321,14 @@ def eval_final(args, model, data_loader, current_epoch=None, step=None, mode='Te
                             else:
                                 pred_mask = ((pred_seg[i] == 0) | (pred_seg[i] == 1)).float()
                                 gt_mask = ((gt_seg[i] == 0) | (gt_seg[i] == 1)).float()
-                                #FIXME: Explain
+                                # Since we only examine A, V, F. We combine the Bg and Capillary masks together as a new class.
 
                             if c_cls == 4:
                                 # pred_mask, gt_mask are [H, W] at this point
                                 H, W = pred_mask.shape
                                 y1, y2 = int(0.25 * H), int(0.75 * H)
                                 x1, x2 = int(0.25 * W), int(0.75 * W)
-                                #FIXME: Explain
+                                # we only care about the center region.
 
                                 # Slice down to center region
                                 pred_mask = pred_mask[y1:y2, x1:x2]

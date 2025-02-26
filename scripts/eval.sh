@@ -8,7 +8,7 @@ python eval.py \
         --batch-size 1 \
         --mask_optic_disc True \
         --run_all_success True \
-        --gpu '1' \
+        --gpu '0' \
         --file_name ${file_name} \
         --image_save_metric ${image_save_metric} \
         # --resume_ckpt_path ${resume_ckpt_path} \

@@ -50,7 +50,6 @@ parser.add_argument("--proj_map_channels", type=int, default=2, help="class numb
 parser.add_argument("--get_2D_pred", type=bool, default=True, help="get 2D head")
 parser.add_argument("--proj_train_ratio", type=int, default=1, help="proj_map H or W to train_size H or W ratio. Currently only supports 1 or 2")
 parser.add_argument("--dc_norms", type = str, default = "NG", help="normalization for Double Conv")
-parser.add_argument("--gt_dir", type = str, default = "GAN_groupnorm_test_set", help="GAN_groupnorm_test_set or OneNorm_test_set")
 
 parser.add_argument('--checkpoint-interval', type=int, default=400,
                     help='Save model checkpoint every K patient updates')
@@ -318,7 +317,7 @@ def eval_final(args, model, data_loader, current_epoch=None, step=None, mode='Te
                         H, W = pred_mask.shape
                         y1, y2 = int(0.25 * H), int(0.75 * H)
                         x1, x2 = int(0.25 * W), int(0.75 * W)
-                        #FIXME: Explain
+                        # We only care about the center region for FAZ.
 
                         # Slice down to center region
                         pred_mask = pred_mask[y1:y2, x1:x2]
