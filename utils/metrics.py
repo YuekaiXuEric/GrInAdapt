@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import medpy.metric.binary as medmetric
+from scipy.ndimage import binary_erosion, distance_transform_edt
 
 bce = torch.nn.BCEWithLogitsLoss(reduction='none')
 
@@ -202,3 +203,97 @@ def assd_compute(pred, target):
             assd[i][j] = assd_numpy(pred[i, j, ...], target[i, j, ...])
 
     return assd
+
+
+def dice_coeff_5label(pred, target, threshold=0.75):
+    """
+    Compute Dice coefficients for 5 classes.
+
+    Args:
+        pred: a torch tensor of shape (N, 5, H, W) (logits)
+        target: a torch tensor of shape (N, 5, H, W) (one-hot binary labels)
+        threshold: threshold to binarize the predictions.
+
+    Returns:
+        A tuple of 5 values (one for each class) representing the average Dice
+        coefficient computed over the batch.
+    """
+    # Bring to CPU and apply sigmoid on predictions
+    target = target.data.cpu()
+    pred = torch.sigmoid(pred).data.cpu()
+    # Binarize predictions
+    pred[pred > threshold] = 1
+    pred[pred <= threshold] = 0
+
+    N = pred.shape[0]
+    dice_list = []
+    for c in range(5):
+        # Extract channel c from predictions and targets.
+        pred_c = pred[:, c, :, :]  # shape (N, H, W)
+        target_c = target[:, c, :, :]  # shape (N, H, W)
+        dice_values = dice_coefficient_numpy(pred_c, target_c)  # returns an array of shape (N,)
+        # Take the mean over the batch
+        dice_mean = np.mean(dice_values)
+        dice_list.append(dice_mean)
+    return tuple(dice_list)
+
+def assd_compute_5label(pred, target, threshold=0.75):
+    """
+    Compute the Average Symmetric Surface Distance (ASSD) for 5 classes.
+
+    Args:
+        pred: a torch tensor of shape (N, 5, H, W) (logits)
+        target: a torch tensor of shape (N, 5, H, W) (one-hot binary labels)
+        threshold: threshold to binarize the predictions.
+
+    Returns:
+        A NumPy array of shape (N, 5) where each element [n, c] is the ASSD for sample n, class c.
+    """
+    target = target.data.cpu()
+    pred = torch.sigmoid(pred).data.cpu()
+    pred[pred > threshold] = 1
+    pred[pred <= threshold] = 0
+
+    N = pred.shape[0]
+    assd_arr = np.zeros((N, 5))
+    for n in range(N):
+        for c in range(5):
+            # Compute ASSD for sample n, class c.
+            assd_arr[n, c] = assd_numpy(pred[n, c, :, :], target[n, c, :, :])
+    return assd_arr
+
+
+def global_avg_pool(logits):
+    if logits.dim() > 2:
+        return logits.mean(dim=[2, 3])
+    else:
+        return logits
+
+
+def dice_coefficient(pred, target, smooth=1e-6):
+    target = target.to(pred.device)
+    intersection = (pred * target).sum()
+    union = pred.sum() + target.sum()
+    dice = (2.0 * intersection + smooth) / (union + smooth)
+    return dice.item()
+
+
+def assd_coefficient(pred_mask, gt_mask):
+    pred_boundary = pred_mask & (~binary_erosion(pred_mask))
+    gt_boundary   = gt_mask   & (~binary_erosion(gt_mask))
+
+    if not np.any(pred_boundary) or not np.any(gt_boundary):
+        return np.nan
+
+    dt_gt = distance_transform_edt(~gt_boundary)
+    dt_pred = distance_transform_edt(~pred_boundary)
+
+    dt_gt = dt_gt.squeeze()  # Remove singleton dimensions
+    pred_boundary = pred_boundary.squeeze()
+    gt_boundary = gt_boundary.squeeze()
+
+    pred_to_gt = dt_gt[pred_boundary]
+    gt_to_pred = dt_pred[gt_boundary]
+
+    all_distances = np.concatenate([pred_to_gt, gt_to_pred])
+    return all_distances.mean()

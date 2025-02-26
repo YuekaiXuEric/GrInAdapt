@@ -534,6 +534,7 @@ class Resize(object):
         img = sample['image']
         mask = sample['label']
         name = sample['img_name']
+
         assert img.width == mask.width
         assert img.height == mask.height
 

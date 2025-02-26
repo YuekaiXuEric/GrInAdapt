@@ -1,0 +1,98 @@
+train_target.py
+==========================================
+gpu:0
+model_file:./logs_train/oneNorm/278.pth
+model:IPN_V2
+out_stride:16
+sync_bn:True
+freeze_bn:False
+epoch:3
+lr:0.0001
+lr_decrease_rate:0.9
+lr_decrease_epoch:1
+data_dir:/projects/chimera/zucksliu/AI-READI-2.0/dataset/
+dataset:AIREADI
+model_source:OCTA500
+batch_size:2
+model_ema_rate:0.98
+pseudo_label_threshold:0.5
+mean_loss_calc_bound_ratio:0.2
+in_channels:2
+n_classes:5
+method:IPN_V2
+ava_classes:2
+proj_map_channels:2
+get_2D_pred:True
+proj_train_ratio:1
+dc_norms:NG
+checkpoint_interval:1000
+resume_ckpt_path:None
+out:/homes/gws/zucksliu/yuekai/SFDA-CBMT/logs_target/AIREADI/20250207_175910_image_level
+out_file:<_io.TextIOWrapper name='/homes/gws/zucksliu/yuekai/SFDA-CBMT/logs_target/AIREADI/20250207_175910_image_level/20250207.txt' mode='w' encoding='UTF-8'>
+
+==> Loading IPNV2_with_proj_map model file: ./logs_train/oneNorm/278.pth
+
+epoch 1/3:
+Eval@1000_teacher_model Extra Label Metrics:
+  Manufacturer: Accuracy: 0.8656, F1: 0.8406, AUC: 0.9615
+  Anatomical  : Accuracy: 0.9889, F1: 0.9829, AUC: nan
+  Region Size : Accuracy: 0.9750, F1: 0.9622, AUC: nan
+  Laterality  : Accuracy: 0.8897, F1: 0.8888, AUC: nan
+
+Segmentation Dice coefficients (mean ± std):
+  Background: 0.8848 ± 0.0651
+  Capillary : 0.7353 ± 0.1465
+  Artery    : 0.7236 ± 0.1865
+  Vein      : 0.7372 ± 0.1926
+  FAZ       : 0.0204 ± 0.1413
+
+Segmentation ASSD (mm) (mean ± std):
+  Background: 0.3570 ± 0.3410
+  Capillary : 0.5259 ± 0.5818
+  Artery    : 2.1796 ± 2.6002
+  Vein      : 2.3380 ± 3.9424
+  FAZ       : nan ± nan
+
+
+Eval@1000_student_model Extra Label Metrics:
+  Manufacturer: Accuracy: 0.8369, F1: 0.7957, AUC: 0.9591
+  Anatomical  : Accuracy: 0.9907, F1: 0.9858, AUC: nan
+  Region Size : Accuracy: 0.9842, F1: 0.9751, AUC: nan
+  Laterality  : Accuracy: 0.8814, F1: 0.8801, AUC: nan
+
+Segmentation Dice coefficients (mean ± std):
+  Background: 0.8831 ± 0.0653
+  Capillary : 0.7337 ± 0.1467
+  Artery    : 0.7226 ± 0.1862
+  Vein      : 0.7277 ± 0.1917
+  FAZ       : 0.0204 ± 0.1413
+
+Segmentation ASSD (mm) (mean ± std):
+  Background: 0.3620 ± 0.3442
+  Capillary : 0.5323 ± 0.5853
+  Artery    : 2.1717 ± 2.5676
+  Vein      : 2.4657 ± 4.0400
+  FAZ       : nan ± nan
+
+
+Eval@2000_teacher_model Extra Label Metrics:
+  Manufacturer: Accuracy: 0.8703, F1: 0.8549, AUC: 0.9830
+  Anatomical  : Accuracy: 0.9926, F1: 0.9887, AUC: nan
+  Region Size : Accuracy: 0.9815, F1: 0.9703, AUC: nan
+  Laterality  : Accuracy: 0.8610, F1: 0.8604, AUC: nan
+
+Segmentation Dice coefficients (mean ± std):
+  Background: 0.8654 ± 0.0620
+  Capillary : 0.6750 ± 0.1424
+  Artery    : 0.6869 ± 0.1848
+  Vein      : 0.6881 ± 0.1944
+  FAZ       : 0.0204 ± 0.1413
+
+Segmentation ASSD (mm) (mean ± std):
+  Background: 0.4734 ± 0.3801
+  Capillary : 0.8033 ± 0.7980
+  Artery    : 2.6527 ± 3.0163
+  Vein      : 2.9001 ± 4.7247
+  FAZ       : nan ± nan
+
+

@@ -1,0 +1,54 @@
+train_target.py --gpu 1
+==========================================
+gpu:1
+model_file:./logs_train/oneNorm/278.pth
+model:IPN_V2
+out_stride:16
+sync_bn:True
+freeze_bn:False
+epoch:3
+lr:0.0005
+lr_decrease_rate:0.9
+lr_decrease_epoch:1
+data_dir:/projects/chimera/zucksliu/AI-READI-2.0/dataset/
+dataset:AIREADI
+model_source:OCTA500
+batch_size:2
+model_ema_rate:0.98
+pseudo_label_threshold:0.5
+mean_loss_calc_bound_ratio:0.2
+in_channels:2
+n_classes:5
+method:IPN_V2
+ava_classes:2
+proj_map_channels:2
+get_2D_pred:True
+proj_train_ratio:1
+dc_norms:NG
+checkpoint_interval:1000
+resume_ckpt_path:None
+out:/homes/gws/zucksliu/yuekai/SFDA-CBMT/logs_target/AIREADI/20250206_222925.586949
+out_file:<_io.TextIOWrapper name='/homes/gws/zucksliu/yuekai/SFDA-CBMT/logs_target/AIREADI/20250206_222925.586949/20250206_222925.586949.txt' mode='w' encoding='UTF-8'>
+
+==> Loading IPNV2_with_proj_map model file: ./logs_train/oneNorm/278.pth
+Initial Extra Label Metrics:
+  Manufacturer: Accuracy: 0.2067, F1: 0.1142, AUC: 0.4506
+  Anatomical  : Accuracy: 0.2057, F1: 0.1706, AUC: nan
+  Region Size : Accuracy: 0.2169, F1: 0.1929, AUC: nan
+  Laterality  : Accuracy: 0.5032, F1: 0.3364, AUC: nan
+
+Segmentation Dice coefficients (mean ± std):
+  Background: 0.9121 ± 0.0734
+  Capillary : 0.7997 ± 0.1482
+  Artery    : 0.7581 ± 0.1938
+  Vein      : 0.7639 ± 0.1941
+  FAZ       : 0.7842 ± 0.2524
+
+Segmentation ASSD (mm) (mean ± std):
+  Background: 0.2688 ± 0.3496
+  Capillary : 0.3695 ± 0.6310
+  Artery    : 2.0544 ± 3.0889
+  Vein      : 2.2188 ± 3.7270
+  FAZ       : nan ± nan
+
+
