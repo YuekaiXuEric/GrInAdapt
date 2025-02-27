@@ -1,5 +1,12 @@
 # GrInAdapt: Scaling Retinal Vessel Structural Map Segmentation Through Grounding, Integrating and Adapting Multi-device, Multi-site, and Multi-modal Fundus Domains
 
+
+This repository contains Pytorch implementation of our Scaling Retinal Vessel Structural Map Segmentation Through Grounding, Integrating and Adapting Multi-device, Multi-site, and Multi-modal Fundus Domains (GrInAdapt).
+
+![method](./figures/Fig1.png "")
+
+
+
 # Installation
 * Install python 3.10.5, pytorch 1.12.0, CUDA 11.6 and other essential packages (Note that using other versions of packages may affect performance.)
 * Clone this repo
@@ -7,6 +14,8 @@
 conda env create -f requirement.yaml
 conda activate grinadapt
 ```
+
+
 
 # Ground trurth test set
 
@@ -58,6 +67,7 @@ Specify thead apted model path and run
 ```
 sh GrInAdapt_Adaption/scripts/eval.sh
 ```
+
 
 
 # Arguments
@@ -201,6 +211,8 @@ GrInAdapt_Adaption/
 │── train_target_ts.py             # Training script for teacher student structure on GrInAdapt(Ours) method
 └── training_utils.py              # Helper functions for training
 ```
+
+
 
 # What the result will look like:
 
