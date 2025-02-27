@@ -8,6 +8,15 @@ conda env create -f requirement.yaml
 conda activate grinadapt
 ```
 
+# Ground trurth test set
+
+`cd test_set_construction` and specify all path in `create_test_label.sh` and run
+```
+sh GrInAdapt_Adaption/test_set_construction/create_test_label.sh
+```
+
+
+
 # Training
 
 Fill all the TODO in `GrInAdapt_Adaption/dataloaders/aireadi_dataset.py` for file path.
@@ -155,12 +164,89 @@ sh GrInAdapt_Adaption/scripts/eval.sh
 - **`--annealing-factor`**
   Type of annealing schedule (e.g., `cos`) used for the loss.
 
+- **`--save_npy`**
+  Whether save the .npy file for each training or evlauation process images
 
-# eval_image.py:
-# if some of the file will be very similar to another file in another directory:
+
+
+# Repo Structure
+
+```
+GrInAdapt_Adaption/
+│── dataloaders/                   # Data loading and transformation utilities
+│   │── aireadi_dataloader.py      # Data loader for AI-READI dataset
+│   │── aireadi_dataset.py         # AI-READI dataset handling
+│   │── custom_octa_transform.py   # Custom transformations for OCTA images for strong and weak agumentations
+│   └── utils.py                   # Utility functions for data handling
+│
+│── scripts/                       # Training and evaluation scripts
+│   └── ...
+│
+│── test_set_construction/         # Scripts for constructing test datasets
+│   │── create_test_label.py       # Python script for creating ground truth test labels
+│   └── create_test_label.sh       # Shell script for test label creation
+│
+│── utils/                         # General utilities for training and evaluation
+│   │── losses.py                  # Loss function implementations
+│   │── metrics.py                 # Metric computation functions
+│   └── Utils.py                   # General helper functions
+│
+│── eval_image.py                  # Evaluating during training process
+│── eval.py                        # Evaluation outside training process
+│── generate_pseudo.py             # Pseudo-label generation for CBMT w/ ensemble prediction
+│── model_with_dropout.py          # Model implementation with dropout layers (only use in generate_pseudo.py)
+│── model.py                       # Core model implementation
+│── train_target_single_model.py   # Training script for DPL structure
+│── train_target_ts_pseudo.py      # Training script for teacher student structure on CBMT method
+│── train_target_ts.py             # Training script for teacher student structure on GrInAdapt(Ours) method
+└── training_utils.py              # Helper functions for training
+```
 
 # What the result will look like:
-save_npy:
+
+## Training Results
+
+```
+training_result_GrInAdapt
+│── eval/
+│   │── metrics_summary.txt
+│   │── metrics.json
+│   │── per_class_dice_scores_all.csv
+│   └── ...
+│
+│── images/
+│   │── Evaluation_batch_idx0.png
+│   │── Evaluation_batch_idx0.npy (If args.save_npy is True)
+│   │── ...
+│   │── Training_epoch0_step100.png
+│   └── ...
+│
+│── 20250101.txt
+│── args.json
+│── checkpoint_epoch0_step100.pth.tar
+│── last.pth.tar
+└── metrics_summary_{epoch and step name}.txt
+```
 
 
-Hiiii this is a test
+## Evaluation Results
+
+```
+evaluation_result_GrInAdapt
+│── eval/
+│   │── metrics_summary.txt
+│   │── metrics.json
+│   │── per_class_dice_scores_all.csv
+│   └── ...
+│
+│── images/
+│   │── Evaluation_batch_idx0.png
+│   │── Evaluation_batch_idx0.npy (If args.save_npy is True)
+│   └── ...
+│
+│── 20250101.txt
+│── args.json
+│── metrics_summary_both.txt
+│── metrics_summary_mean.txt
+└── metrics_summary_std.txt
+```
