@@ -23,12 +23,12 @@ conda activate grinadapt
 ```
 sh GrInAdapt_Adaption/test_set_construction/create_test_label.sh
 ```
-
+We will try to put some examples here and later on we also plan to publish our test set to facilitate better benchmarking.
 
 
 # Training
 
-Fill all the TODO in `GrInAdapt_Adaption/dataloaders/aireadi_dataset.py` for file path.
+NOTE: Here because we are not complied to release related image infomation in AI-READI Dataset, we left some path to be changed to incorrprate your image information if you have your own dataset or have the access to the AI-READI dataset. If you want to use it now, please fill all the TODO in `GrInAdapt_Adaption/dataloaders/aireadi_dataset.py` for file path. We plan to provide a dummy file for testing later on.
 
 Download the source domain model from here[TODO] or specify data path in `./train_source.py` and then run python `train_source.py`.
 
@@ -214,7 +214,7 @@ GrInAdapt_Adaption/
 
 
 
-# What the result will look like:
+# How the result directory will look like:
 
 ## Training Results
 
