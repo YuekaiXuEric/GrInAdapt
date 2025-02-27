@@ -262,3 +262,9 @@ evaluation_result_GrInAdapt
 │── metrics_summary_mean.txt
 └── metrics_summary_std.txt
 ```
+
+
+
+# Acknowledgement
+
+We would like to thank the great work of the following open-source projects: [DPL](https://github.com/cchen-cc/SFDA-DPL), [CBMT](https://github.com/lloongx/SFDA-CBMT), and [CPR](https://github.com/xmed-lab/CPR).
