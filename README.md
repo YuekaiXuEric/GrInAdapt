@@ -70,7 +70,7 @@ sh GrInAdapt_Adaption/scripts/eval.sh
 
 # Sample Comparision
 
-![comparision](./figures/Fig1.png "")
+![comparision](./figures/fig3-Miccai.png "")
 
 
 # Arguments
