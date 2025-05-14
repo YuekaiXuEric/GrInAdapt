@@ -68,7 +68,7 @@ Specify thead apted model path and run
 sh GrInAdapt_Adaption/scripts/eval.sh
 ```
 
-# Sample Comparision
+# Samples Comparision
 
 ![comparision](./figures/fig3-Miccai.png "")
 
