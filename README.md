@@ -68,6 +68,9 @@ Specify thead apted model path and run
 sh GrInAdapt_Adaption/scripts/eval.sh
 ```
 
+# Sample Comparision
+
+![comparision](./figures/Fig1.png "")
 
 
 # Arguments
