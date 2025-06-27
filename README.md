@@ -1,4 +1,4 @@
-# GrInAdapt: Scaling Retinal Vessel Structural Map Segmentation Through Grounding, Integrating and Adapting Multi-device, Multi-site, and Multi-modal Fundus Domains
+# GrinAdapt: Source-free Multi-Target Domain Adaptation for Retinal Vessel Segmentation
 
 
 This repository contains Pytorch implementation of our Scaling Retinal Vessel Structural Map Segmentation Through Grounding, Integrating and Adapting Multi-device, Multi-site, and Multi-modal Fundus Domains (GrInAdapt).
