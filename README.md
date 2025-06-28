@@ -6,7 +6,7 @@ This repository contains Pytorch implementation of our Scaling Retinal Vessel St
 ![method](./figures/Fig1.png "")
 
 # 🔥 News
-- **[Jun 2025]** Our paper *GrinAdapt: Source-free Multi-Target Domain Adaptation for Retinal Vessel Segmentation* has been accepted to [MICCAI 2025](https://conferences.miccai.org/2025/en/default.asp)
+- **[Jun 2025]** Our paper has been accepted to [MICCAI 2025](https://conferences.miccai.org/2025/en/default.asp)
 
 # Installation
 * Install python 3.10.5, pytorch 1.12.0, CUDA 11.6 and other essential packages (Note that using other versions of packages may affect performance.)
